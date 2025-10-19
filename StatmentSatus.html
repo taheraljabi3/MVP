@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>كشف الحساب — نموذج تفاعلي (مطابقة)</title>
+<style>
+  :root{
+    --bg:#ffffff; --fg:#0f172a; --muted:#64748b; --line:#e2e8f0; --soft:#f8fafc;
+    --blue:#1e88e5; --blue-weak:#e3f2fd; --badge:#eef2ff; --shadow:0 6px 20px rgba(2,8,23,.08);
+    --ok:#16a34a; --warn:#d97706; --err:#dc2626; --sel:#fff7ed;
+  }
+  html,body{background:var(--bg);color:var(--fg);font-family:system-ui,"Segoe UI",Tahoma,sans-serif}
+  *{box-sizing:border-box}
+
+  header{position:sticky; top:0; z-index:50; background:var(--bg); border-bottom:1px solid var(--line); box-shadow:0 2px 8px rgba(0,0,0,.04)}
+  .wrap{max-width:1200px; margin:0 auto; padding:12px 16px}
+  .head{display:flex; align-items:center; gap:12px; justify-content:space-between}
+  .brand{display:flex; align-items:center; gap:10px}
+  .logo{width:12px; height:12px; border-radius:50%; background:var(--blue); box-shadow:0 0 0 6px var(--blue-weak)}
+  h1{margin:0; font-size:18px}
+  .today{font-size:13px; color:var(--muted)}
+  .search{flex:1; max-width:420px; display:flex; gap:8px; align-items:center; margin-inline-start:12px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 12px}
+  .search input{border:0; outline:0; width:100%; font-size:14px}
+  .icon{width:18px; height:18px; display:inline-block; border-radius:4px}
+  .icon.blue{background:var(--blue)}
+
+  .filters{display:flex; flex-wrap:wrap; gap:10px; align-items:end; padding:12px 0}
+  .filters .field{display:flex; flex-direction:column; gap:6px}
+  label{font-size:12px; color:var(--muted)}
+  input[type="date"], select{border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:14px; background:#fff; min-width:140px}
+  .btn{border:1px solid var(--blue); color:#fff; background:var(--blue); padding:8px 12px; border-radius:10px; cursor:pointer; font-size:14px}
+  .btn.ghost{background:#fff; color:var(--blue)}
+  .btn.light{background:var(--blue-weak); color:var(--blue); border-color:var(--blue-weak)}
+  .btn.small{padding:6px 10px; font-size:12px; border-radius:8px}
+
+  .bar{display:flex; align-items:center; gap:8px; justify-content:space-between; margin:10px 0}
+  .meta{font-size:13px; color:var(--muted)}
+  .actions{display:flex; gap:8px; flex-wrap:wrap}
+
+  .legend{display:flex; gap:10px; align-items:center; font-size:12px; color:var(--muted)}
+  .dot{display:inline-block; width:10px; height:10px; border-radius:50%}
+  .ok{background:var(--ok)} .part{background:var(--warn)} .err{background:var(--err)}
+
+  .table-wrap{border:1px solid var(--line); border-radius:14px; overflow:hidden; background:#fff}
+  table{width:100%; border-collapse:separate; border-spacing:0}
+  thead th{position:sticky; top:66px; background:#f6f9ff; color:#111827; font-weight:600; font-size:13px; border-bottom:1px solid var(--line); padding:10px; text-align:right; cursor:pointer; user-select:none}
+  thead th .chev{opacity:.45; font-weight:700; font-size:12px; margin-inline-start:6px}
+  tbody td{border-bottom:1px solid var(--line); padding:10px; font-size:14px; vertical-align:top}
+  tbody tr:nth-child(odd){background:var(--soft)}
+  tbody tr:hover{background:#f1f5ff}
+  tr.sel{background:var(--sel) !important}
+
+  .ellipsis{max-width:360px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .badge{display:inline-block; background:var(--badge); color:#3730a3; border:1px solid #e0e7ff; border-radius:999px; padding:2px 8px; font-size:11px; margin-inline-start:6px}
+  .badge[data-type="customer"]{background:#ecfeff; color:#155e75; border-color:#cffafe}
+  .badge[data-type="supplier"]{background:#fff7ed; color:#9a3412; border-color:#ffedd5}
+  .badge[data-type="bank"]{background:#eff6ff; color:#1e3a8a; border-color:#dbeafe}
+  .badge[data-type="gl"]{background:#f1f5f9; color:#0f172a; border-color:#e2e8f0}
+
+  .status{font-weight:700}
+  .status.ok{color:var(--ok)} .status.part{color:var(--warn)} .status.err{color:var(--err)}
+
+  .popover{position:absolute; background:#fff; border:1px solid var(--line); box-shadow:var(--shadow); border-radius:12px; padding:10px; min-width:260px; max-width:340px; display:none}
+  .popover.show{display:block}
+  .popover .title{font-size:13px; color:var(--muted); margin-bottom:8px}
+  .popover .list{max-height:220px; overflow:auto}
+  .popover .row{display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px dashed #eef2f7}
+  .popover .row:last-child{border-bottom:0}
+  .popover .foot{display:flex; justify-content:flex-end; gap:8px; margin-top:8px}
+  .popover .link{color:var(--blue); font-size:12px; cursor:pointer}
+
+  .cards{display:none; gap:12px}
+  .card{background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.03); padding:10px}
+  .card h3{margin:0 0 6px; font-size:15px}
+  .kv{display:grid; grid-template-columns:120px 1fr; gap:6px; font-size:13px}
+  .kv div{padding:2px 0; border-bottom:1px dashed #eef2f7}
+  .kv div:last-child{border-bottom:0}
+  .counterline{margin-top:8px; font-size:13px}
+
+  .footer{margin:10px 0; background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px; display:flex; gap:20px; justify-content:flex-start; flex-wrap:wrap}
+  .pill{background:var(--blue-weak); color:#0b3c7a; padding:6px 10px; border-radius:999px; font-size:13px}
+
+  @media (max-width: 800px){
+    thead{display:none} table{display:none} .cards{display:grid}
+    .filters .field{min-width:140px} .search{max-width:none}
+  }
+  .focusable{outline:2px solid transparent; outline-offset:2px}
+  .focusable:focus{outline-color: var(--blue)}
+  @media print{
+    header,.filters,.bar,.footer{display:none}
+    .table-wrap{border:0} thead th{top:0}
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap head">
+      <div class="brand">
+        <span class="logo" aria-hidden="true"></span>
+        <h1>كشف الحساب</h1>
+      </div>
+      <div class="today" id="today" aria-live="polite"></div>
+      <div class="search" title="ابحث في الوصف والحساب المقابل">
+        <span class="icon blue" aria-hidden="true"></span>
+        <input id="q" placeholder="بحث عام…" aria-label="بحث عام" />
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap" style="padding-top:12px">
+    <section class="filters" aria-label="فلاتر">
+      <div class="field">
+        <label for="from">من تاريخ</label>
+        <input type="date" id="from" />
+      </div>
+      <div class="field">
+        <label for="to">إلى تاريخ</label>
+        <input type="date" id="to" />
+      </div>
+      <div class="field">
+        <label for="type">نوع الحساب المقابل</label>
+        <select id="type">
+          <option value="">الكل</option>
+          <option value="customer">عميل</option>
+          <option value="supplier">مورد</option>
+          <option value="bank">بنك</option>
+          <option value="gl">GL</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="matchState">حالة المطابقة</label>
+        <select id="matchState">
+          <option value="">الكل</option>
+          <option value="matched">مطابق</option>
+          <option value="partial">جزئي</option>
+          <option value="unmatched">غير مطابق</option>
+        </select>
+      </div>
+      <div class="actions">
+        <button class="btn light" id="quick-today" type="button">اليوم</button>
+        <button class="btn light" id="quick-this-month" type="button">هذا الشهر</button>
+        <button class="btn light" id="quick-last-month" type="button">الشهر الماضي</button>
+        <button class="btn ghost" id="reset" type="button">إعادة تعيين</button>
+      </div>
+    </section>
+
+    <div class="bar" role="status" aria-live="polite">
+      <div class="meta">
+        <span id="count">0</span> نتيجة
+        <span class="legend">
+          — <span class="dot ok"></span> ✅ مطابق
+          <span class="dot part"></span> ◔ جزئي
+          <span class="dot err"></span> ⭕ غير مطابق
+        </span>
+      </div>
+      <div class="actions">
+        <button class="btn small" id="auto-reconcile" type="button" title="مطابقة تلقائية بأسلوب FIFO">مطابقة تلقائية (FIFO)</button>
+        <button class="btn small" id="manual-reconcile" type="button" title="حدد فواتير + قبض ثم اضغط">مطابقة يدوية</button>
+        <button class="btn small" id="export" type="button">تصدير CSV</button>
+      </div>
+    </div>
+
+    <section class="table-wrap" aria-label="الجدول">
+      <table id="grid">
+        <thead>
+          <tr>
+            <th data-sort="date" aria-sort="none" tabindex="0" class="focusable">التاريخ <span class="chev">↕</span></th>
+            <th data-sort="jvNo" aria-sort="none" tabindex="0" class="focusable">رقم القيد <span class="chev">↕</span></th>
+            <th data-sort="description" aria-sort="none" tabindex="0" class="focusable">الوصف <span class="chev">↕</span></th>
+            <th data-sort="debit" aria-sort="none" tabindex="0" class="focusable">مدين <span class="chev">↕</span></th>
+            <th data-sort="credit" aria-sort="none" tabindex="0" class="focusable">دائن <span class="chev">↕</span></th>
+            <th data-sort="balanceAfter" aria-sort="none" tabindex="0" class="focusable">الرصيد <span class="chev">↕</span></th>
+            <th data-sort="status" aria-sort="none" tabindex="0" class="focusable">الحالة <span class="chev">↕</span></th>
+            <th data-sort="counter" aria-sort="none" tabindex="0" class="focusable">الحساب المقابل <span class="chev">↕</span></th>
+          </tr>
+        </thead>
+        <tbody id="body"></tbody>
+      </table>
+
+      <div class="cards" id="cards"></div>
+    </section>
+
+    <section class="footer" aria-label="مجاميع">
+      <div class="pill">مجموع المدين: <b id="sum-debit">0</b></div>
+      <div class="pill">مجموع الدائن: <b id="sum-credit">0</b></div>
+      <div class="pill">الرصيد النهائي: <b id="sum-balance">0</b></div>
+    </section>
+  </main>
+
+  <div class="popover" id="popover" role="dialog" aria-modal="false" aria-hidden="true">
+    <div class="title">الحسابات المقابلة</div>
+    <div class="list" id="pop-list"></div>
+    <div class="foot">
+      <button class="link" id="drill" type="button">عرض القيد</button>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const $ = s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+  const fmt = n => (Number(n)||0).toLocaleString('ar-SA');
+  const today = new Date();
+  $('#today').textContent = today.toLocaleDateString('ar-SA',{year:'numeric',month:'long',day:'numeric'});
+
+  // بيانات مع حقل المطابقة: kind = 'invoice' (مدين) أو 'receipt' (قبض/دائن)
+  // remaining: المبلغ المتبقي غير مطابق، matches: [{ref, amount}]
+  const data = [
+    {date:"2025-09-01", jvNo:"JV-2025-00123", description:"قبض من عميل خالد", debit:0, credit:1500, kind:'receipt', remaining:1500, matches:[], balanceAfter:23500, counterparts:[{name:"عميل: خالد", type:"customer", amount:1500}]},
+    {date:"2025-09-02", jvNo:"JV-2025-00124", description:"سداد مورد شركة الإبداع", debit:2500, credit:0, kind:'invoice', remaining:2500, matches:[], balanceAfter:21000, counterparts:[{name:"مورد: شركة الإبداع للتوريدات", type:"supplier", amount:2500}]},
+    {date:"2025-09-03", jvNo:"JV-2025-00125", description:"رسوم خدمات بنكية", debit:75, credit:0, kind:'invoice', remaining:75, matches:[], balanceAfter:20925, counterparts:[{name:"GL: رسوم بنكية", type:"gl", amount:75}]},
+    {date:"2025-09-04", jvNo:"JV-2025-00126", description:"قيد متعدد (عميل + صندوق + مصروف + ضريبة)", debit:0, credit:0, kind:'neutral', remaining:0, matches:[], balanceAfter:20925, counterparts:[
+      {name:"عميل: المتحد الدولية للتجارة", type:"customer", amount:6000},
+      {name:"GL: صندوق رئيسي", type:"gl", amount:2000},
+      {name:"GL: مصروف نقل وشحن", type:"gl", amount:3500},
+      {name:"GL: ضريبة مخرجات", type:"gl", amount:500}
+    ]},
+    {date:"2025-08-28", jvNo:"JV-2025-00110", description:"إيراد مبيعات نقدي", debit:0, credit:4200, kind:'receipt', remaining:4200, matches:[], balanceAfter:18000, counterparts:[{name:"GL: صندوق الفرع الغربي", type:"gl", amount:4200}]},
+    {date:"2025-10-01", jvNo:"JV-2025-00200", description:"فاتورة عميل: مؤسسة الروّاد", debit:3000, credit:0, kind:'invoice', remaining:3000, matches:[], balanceAfter:25000, counterparts:[{name:"عميل: مؤسسة الروّاد", type:"customer", amount:3000}]},
+    {date:"2025-10-02", jvNo:"JV-2025-00201", description:"قبض مركب: عميل + بنك + خصم نقدي", debit:0, credit:5000, kind:'receipt', remaining:5000, matches:[], balanceAfter:25000, counterparts:[
+      {name:"عميل: خالد بن سالم", type:"customer", amount:5000},
+      {name:"بنك: الأهلي التجاري - حساب أساسي", type:"bank", amount:4900},
+      {name:"GL: خصم نقدي", type:"gl", amount:100}
+    ]},
+    {date:"2025-07-15", jvNo:"JV-2025-00077", description:"مصروف صيانة", debit:900, credit:0, kind:'invoice', remaining:900, matches:[], balanceAfter:14500, counterparts:[{name:"GL: مصروف صيانة", type:"gl", amount:900}]}
+  ];
+
+  let state = {
+    sortKey:'date', sortDir:'desc',
+    q:'', from:'', to:'', type:'', matchState:'',
+    pop:{open:false, jvNo:null},
+    selectedRefs:new Set()
+  };
+
+  const firstCounterName = r=> r.counterparts[0]?.name || '';
+  const statusOf = (r)=>{
+    if(r.kind==='neutral') return {code:'matched', text:'—'};
+    const rem = Number(r.remaining||0);
+    const base = r.kind==='invoice' ? (r.debit||0) : (r.credit||0);
+    if(rem<=0) return {code:'matched', text:'✅'};
+    if(rem===base) return {code:'unmatched', text:'⭕'};
+    return {code:'partial', text:'◔'};
+  };
+
+  const inRange = d => (!state.from || d>=state.from) && (!state.to || d<=state.to);
+  const matchType = row => !state.type || row.counterparts.some(cp=>cp.type===state.type);
+  const matchQuery = row => {
+    if(!state.q) return true;
+    const hay = (row.description+' '+row.jvNo+' '+row.counterparts.map(c=>c.name).join(' ')).toLowerCase();
+    return hay.includes(state.q.toLowerCase());
+  };
+  const matchState = row => {
+    if(!state.matchState) return true;
+    return statusOf(row).code === state.matchState;
+  };
+
+  const filtered = ()=> data.filter(r=>inRange(r.date)&&matchType(r)&&matchQuery(r)&&matchState(r));
+
+  const sorters = {
+    date:(a,b)=> a.date.localeCompare(b.date),
+    jvNo:(a,b)=> a.jvNo.localeCompare(b.jvNo,'ar'),
+    description:(a,b)=> a.description.localeCompare(b.description,'ar'),
+    debit:(a,b)=> (a.debit||0)-(b.debit||0),
+    credit:(a,b)=> (a.credit||0)-(b.credit||0),
+    balanceAfter:(a,b)=> (a.balanceAfter||0)-(b.balanceAfter||0),
+    counter:(a,b)=> {
+      const an = a.counterparts.length===1 ? firstCounterName(a) : (firstCounterName(a)||'متعدد');
+      const bn = b.counterparts.length===1 ? firstCounterName(b) : (firstCounterName(b)||'متعدد');
+      return an.localeCompare(bn,'ar');
+    },
+    status:(a,b)=> {
+      const order = {matched:2, partial:1, unmatched:0};
+      return order[statusOf(a).code]-order[statusOf(b).code];
+    }
+  };
+  function sortRows(arr){
+    const fn = sorters[state.sortKey]||sorters.date;
+    const sorted = [...arr].sort(fn);
+    if(state.sortDir==='desc') sorted.reverse();
+    return sorted;
+  }
+
+  const bodyEl=$('#body'), cardsEl=$('#cards'), sumD=$('#sum-debit'), sumC=$('#sum-credit'), sumB=$('#sum-balance'), countEl=$('#count');
+
+  function badge(type){
+    const map={customer:'عميل', supplier:'مورد', bank:'بنك', gl:'GL'};
+    return `<span class="badge" data-type="${type}">${map[type]||'GL'}</span>`;
+  }
+  function renderCounterCell(row){
+    const cps=row.counterparts;
+    if(cps.length<=1){
+      const cp=cps[0];
+      return `<div class="ellipsis" title="${cp?cp.name:''}">${cp?cp.name:''} ${cp?badge(cp.type):''}</div>`;
+    }
+    const label=`متعدد: ${cps.slice(0,2).map(c=>c.name).join('، ')}${cps.length>2?'…':''}`;
+    return `<button class="ellipsis multi focusable" data-jv="${row.jvNo}" title="انقر لعرض التفاصيل" aria-haspopup="dialog" aria-expanded="false" style="border:0;background:transparent;text-align:right;cursor:pointer;">${label}</button>`;
+  }
+
+  function render(){
+    closePopover();
+    const rows=sortRows(filtered());
+    countEl.textContent=rows.length;
+
+    const sD=rows.reduce((a,r)=>a+(Number(r.debit)||0),0);
+    const sC=rows.reduce((a,r)=>a+(Number(r.credit)||0),0);
+    const lastBal=rows.length? rows[rows.length-1].balanceAfter : 0;
+    sumD.textContent=fmt(sD); sumC.textContent=fmt(sC); sumB.textContent=fmt(lastBal);
+
+    bodyEl.innerHTML=rows.map(r=>{
+      const st=statusOf(r);
+      const sel= state.selectedRefs.has(r.jvNo) ? ' sel' : '';
+      return `<tr data-ref="${r.jvNo}" class="${sel}">
+        <td>${r.date}</td>
+        <td>${r.jvNo}</td>
+        <td class="ellipsis" title="${r.description}">${r.description}</td>
+        <td>${fmt(r.debit)}</td>
+        <td>${fmt(r.credit)}</td>
+        <td>${fmt(r.balanceAfter)}</td>
+        <td class="status ${st.code}" title="${st.code}">${st.text}</td>
+        <td>${renderCounterCell(r)}</td>
+      </tr>`;
+    }).join('');
+
+    // اختيار صفوف للمطابقة اليدوية
+    $$('#body tr').forEach(tr=>{
+      tr.addEventListener('click', (e)=>{
+        // تجاهل نقر زر البوب أو الروابط
+        if(e.target.closest('.multi')) return;
+        const ref=tr.getAttribute('data-ref');
+        if(state.selectedRefs.has(ref)) state.selectedRefs.delete(ref); else state.selectedRefs.add(ref);
+        render();
+      });
+    });
+
+    // بطاقات للجوال
+    cardsEl.innerHTML=rows.map(r=>{
+      const st=statusOf(r);
+      const cps=r.counterparts;
+      const counterLine=cps.length<=1? (cps[0]?.name||'') : `متعدد: ${cps.slice(0,2).map(c=>c.name).join('، ')}${cps.length>2?'…':''}`;
+      return `<div class="card" data-jv="${r.jvNo}">
+        <h3>${r.jvNo} <span class="status ${st.code}">${st.text}</span></h3>
+        <div class="kv">
+          <div>التاريخ</div><div>${r.date}</div>
+          <div>الوصف</div><div>${r.description}</div>
+          <div>مدين</div><div>${fmt(r.debit)}</div>
+          <div>دائن</div><div>${fmt(r.credit)}</div>
+          <div>الرصيد</div><div>${fmt(r.balanceAfter)}</div>
+        </div>
+        <div class="counterline"><b>الحساب المقابل:</b> <span class="ellipsis" title="${counterLine}">${counterLine}</span></div>
+      </div>`;
+    }).join('');
+
+    // popover
+    $$('#body .multi').forEach(el=>{
+      el.addEventListener('click', ()=> openPopoverFor(el.getAttribute('data-jv'), el));
+      el.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openPopoverFor(el.getAttribute('data-jv'), el); } });
+    });
+
+    updateSortIndicators();
+  }
+
+  // ===== Popover =====
+  const pop=$('#popover'), popList=$('#pop-list'), drillBtn=$('#drill'); let anchorEl=null;
+  function openPopoverFor(jvNo, anchor){
+    const row=data.find(r=>r.jvNo===jvNo); if(!row) return;
+    anchorEl=anchor;
+    popList.innerHTML = [
+      `<div class="row" style="font-weight:600"><span>مطابقات</span><span>المبلغ</span></div>`,
+      ...(row.matches.length? row.matches : [{ref:'—',amount:0}])
+      .map(m=>`<div class="row"><span>${m.ref}</span><span>${fmt(m.amount)}</span></div>`)
+    ].join('');
+    pop.classList.add('show'); pop.setAttribute('aria-hidden','false');
+    const rect=anchor.getBoundingClientRect(), pr=document.documentElement.clientWidth;
+    pop.style.top = `${window.scrollY + rect.top + rect.height + 8}px`;
+    pop.style.right = `${(pr - rect.right)}px`;
+    anchor.setAttribute('aria-expanded','true');
+  }
+  function closePopover(){
+    pop.classList.remove('show'); pop.setAttribute('aria-hidden','true');
+    if(anchorEl){ anchorEl.setAttribute('aria-expanded','false'); anchorEl=null; }
+  }
+  drillBtn.addEventListener('click', ()=> closePopover());
+  document.addEventListener('click', (e)=>{ if(!pop.contains(e.target) && !e.target.closest('.multi')) closePopover(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closePopover(); });
+
+  // ===== فرز =====
+  function setSort(key){
+    if(state.sortKey===key){ state.sortDir = state.sortDir==='asc'?'desc':'asc'; }
+    else { state.sortKey=key; state.sortDir='asc'; }
+    render();
+  }
+  function updateSortIndicators(){
+    $$('#grid thead th').forEach(th=>{
+      const key=th.getAttribute('data-sort'); if(!key) return;
+      const dir=(key===state.sortKey)?state.sortDir:'none';
+      th.setAttribute('aria-sort', dir==='none'?'none':(dir==='asc'?'ascending':'descending'));
+      const chev=th.querySelector('.chev'); if(chev) chev.textContent= dir==='asc'?'↑':(dir==='desc'?'↓':'↕');
+    });
+  }
+  $$('#grid thead th').forEach(th=>{
+    const key=th.getAttribute('data-sort'); if(!key) return;
+    th.addEventListener('click', ()=> setSort(key));
+    th.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); setSort(key); }});
+  });
+
+  // ===== بحث وفلاتر =====
+  let t; $('#q').addEventListener('input', e=>{ clearTimeout(t); t=setTimeout(()=>{ state.q=e.target.value.trim(); render(); }, 250); });
+  $('#from').addEventListener('change', e=>{ state.from=e.target.value; render(); });
+  $('#to').addEventListener('change', e=>{ state.to=e.target.value; render(); });
+  $('#type').addEventListener('change', e=>{ state.type=e.target.value; render(); });
+  $('#matchState').addEventListener('change', e=>{ state.matchState=e.target.value; render(); });
+
+  // أزرار التاريخ
+  function setThisMonth(){ const d=new Date(); const first=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10); const last=new Date(d.getFullYear(),d.getMonth()+1,0).toISOString().slice(0,10); $('#from').value=state.from=first; $('#to').value=state.to=last; render(); }
+  function setLastMonth(){ const d=new Date(); const first=new Date(d.getFullYear(),d.getMonth()-1,1).toISOString().slice(0,10); const last=new Date(d.getFullYear(),d.getMonth(),0).toISOString().slice(0,10); $('#from').value=state.from=first; $('#to').value=state.to=last; render(); }
+  function setToday(){ const t=new Date().toISOString().slice(0,10); $('#from').value=state.from=t; $('#to').value=state.to=t; render(); }
+  $('#quick-this-month').addEventListener('click', setThisMonth);
+  $('#quick-last-month').addEventListener('click', setLastMonth);
+  $('#quick-today').addEventListener('click', setToday);
+
+  $('#reset').addEventListener('click', ()=>{
+    state={sortKey:'date',sortDir:'desc',q:'',from:'',to:'',type:'',matchState:'',pop:{open:false,jvNo:null},selectedRefs:new Set()};
+    $('#q').value=''; $('#from').value=''; $('#to').value=''; $('#type').value=''; $('#matchState').value='';
+    render();
+  });
+
+  // ===== مطابقة تلقائية FIFO =====
+  function autoReconcileFIFO(){
+    // ننسخ ونفرّغ المطابقات السابقة
+    data.forEach(r=>{ r.matches=[]; r.remaining = r.kind==='invoice' ? (r.debit||0) : (r.kind==='receipt' ? (r.credit||0) : 0); });
+
+    const invoices = data.filter(r=>r.kind==='invoice').sort((a,b)=> a.date.localeCompare(b.date));
+    const receipts = data.filter(r=>r.kind==='receipt').sort((a,b)=> a.date.localeCompare(b.date));
+
+    for(const pay of receipts){
+      let left = pay.remaining;
+      if(left<=0) continue;
+
+      for(const inv of invoices){
+        if(left<=0) break;
+        if(inv.remaining<=0) continue;
+
+        const take = Math.min(left, inv.remaining);
+        // سجّل على الطرفين
+        pay.matches.push({ref: inv.jvNo, amount: take});
+        inv.matches.push({ref: pay.jvNo, amount: take});
+        pay.remaining -= take;
+        inv.remaining -= take;
+        left -= take;
+      }
+    }
+    render();
+  }
+
+  // ===== مطابقة يدوية (حسب تحديد المستخدم لصفوف) =====
+  function manualReconcile(){
+    const selected = data.filter(r=>state.selectedRefs.has(r.jvNo));
+    const invoices = selected.filter(r=>r.kind==='invoice').sort((a,b)=> a.date.localeCompare(b.date));
+    const receipts = selected.filter(r=>r.kind==='receipt').sort((a,b)=> a.date.localeCompare(b.date));
+
+    if(!invoices.length || !receipts.length){ alert('اختر فواتير (مدين) وسندات قبض (دائن) معًا للمطابقة اليدوية.'); return; }
+
+    // لا نمس الصفوف غير المحددة
+    invoices.forEach(r=>{ if(r.matches==null) r.matches=[]; });
+    receipts.forEach(r=>{ if(r.matches==null) r.matches=[]; });
+
+    // نطابق بشكل جشع حسب ترتيب التحديد (ثم التاريخ)
+    for(const pay of receipts){
+      let left = pay.remaining;
+      if(left<=0) continue;
+      for(const inv of invoices){
+        if(left<=0) break;
+        if(inv.remaining<=0) continue;
+        const take = Math.min(left, inv.remaining);
+        pay.matches.push({ref: inv.jvNo, amount: take});
+        inv.matches.push({ref: pay.jvNo, amount: take});
+        pay.remaining -= take;
+        inv.remaining -= take;
+        left -= take;
+      }
+    }
+    // إزالة التحديد بعد المطابقة
+    state.selectedRefs.clear();
+    render();
+  }
+
+  $('#auto-reconcile').addEventListener('click', autoReconcileFIFO);
+  $('#manual-reconcile').addEventListener('click', manualReconcile);
+
+  // ===== تصدير CSV (يشمل حالة المطابقة والروابط) =====
+  function toCSV(rows){
+    const headers = ['Date','JVNo','Description','Debit','Credit','BalanceAfter','MatchStatus','MatchRefs','CounterAccount','RelatedAccountsFull'];
+    const lines = [headers.join(',')];
+    rows.forEach(r=>{
+      const st=statusOf(r).code;
+      const refs=(r.matches||[]).map(m=>`${m.ref}:${m.amount}`).join('; ');
+      const isMulti = r.counterparts.length>1;
+      const counter = isMulti ? 'Multiple' : (r.counterparts[0]?.name||'');
+      const full = r.counterparts.map(c=>`${c.name} (${c.type})`).join('; ');
+      const vals = [r.date, r.jvNo, (r.description||'').replaceAll(',', '،'), r.debit||0, r.credit||0, r.balanceAfter||0, st, refs.replaceAll(',', '،'), counter.replaceAll(',', '،'), isMulti? full.replaceAll(',', '،'): '' ];
+      lines.push(vals.map(v=>`"${v}"`).join(','));
+    });
+    return lines.join('\n');
+  }
+  $('#export').addEventListener('click', ()=>{
+    const rows=sortRows(filtered());
+    const csv=toCSV(rows);
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='account-statement-reconciled.csv'; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // تهيئة
+  render();
+})();
+</script>
+</body>
+</html>
