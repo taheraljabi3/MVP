@@ -293,221 +293,203 @@
   </template>
 
   <script>
-    // ===== Theme & Tabs =====
-    const $ = (s,root=document)=>root.querySelector(s); const $$=(s,root=document)=>[...root.querySelectorAll(s)];
-    const state = {
-      theme: localStorage.getItem('theme')||'light',
-      headCC:null, headHeadAlloc:[],
-      lines:[],
-      allocCtx:null, // {target: 'line'|'head'|'jv-line', id, total, rows:[]}
-      jv:{ loaded:false, headCC:null, lines:[] },
-      centers: Array.from({length:200}, (_,i)=>({ id:`CC-${String(i+1).padStart(4,'0')}`, name:`مركز ${i+1}`, active: i%9!==0 }))
-    };
-    function applyTheme(){
-      document.documentElement.setAttribute('data-theme', state.theme==='dark'?'dark':'light');
-      const btn=$('#themeToggle'); btn.textContent = state.theme==='dark'? '☀️ الوضع الفاتح' : '🌙 الوضع الداكن';
-      btn.setAttribute('aria-pressed', state.theme==='dark');
+window.addEventListener('DOMContentLoaded', () => {
+  // ===== Utilities =====
+  const $ = (s,root=document)=>root.querySelector(s); const $$=(s,root=document)=>[...root.querySelectorAll(s)];
+  const fmtMoney = x=> Number(x||0).toFixed(2);
+
+  // ===== State =====
+  const state = {
+    theme: localStorage.getItem('theme')||'light',
+    headCC:null, headHeadAlloc:[],
+    lines:[],
+    allocCtx:null, // {target: 'line'|'head'|'jv-line', id, total, rows:[]}
+    jv:{ loaded:false, headCC:null, lines:[] },
+    centers: Array.from({length:200}, (_,i)=>({ id:`CC-${String(i+1).padStart(4,'0')}`, name:`مركز ${i+1}`, active: i%9!==0 }))
+  };
+
+  // ===== Safe guards: ensure elements exist =====
+  function must(id){ const el = document.getElementById(id); if(!el){ console.error('Missing element:', id); } return el; }
+
+  // ===== Theme & Tabs =====
+  function applyTheme(){
+    document.documentElement.setAttribute('data-theme', state.theme==='dark'?'dark':'light');
+    const btn=must('themeToggle'); if(btn){ btn.textContent = state.theme==='dark'? '☀️ الوضع الفاتح' : '🌙 الوضع الداكن'; btn.setAttribute('aria-pressed', state.theme==='dark'); }
+  }
+  const themeBtn = must('themeToggle');
+  if(themeBtn){ themeBtn.addEventListener('click',()=>{ state.theme= state.theme==='dark'?'light':'dark'; localStorage.setItem('theme',state.theme); applyTheme(); }); }
+  applyTheme();
+
+  $$('.tab').forEach(b=>b.addEventListener('click',()=>{
+    $$('.tab').forEach(x=>x.setAttribute('aria-selected','false')); b.setAttribute('aria-selected','true');
+    const key=b.dataset.tab; must('panel-invoice').hidden = key!=='invoice'; must('panel-journal').hidden = key!=='journal'; must('panel-reports').hidden = key!=='reports';
+  }));
+
+  // ===== Cost Center Picker (generic) =====
+  function attachPicker(input,{onPick}={}){
+    if(!input) return; const wrap=input.closest('.cc-picker'); if(!wrap) return; const list=wrap.querySelector('.cc-dropdown');
+    function render(q=''){
+      const rows = state.centers.filter(c=> (c.active) && (c.id.toLowerCase().includes(q)||c.name.includes(q)) ).slice(0,30);
+      list.innerHTML = rows.map((c)=>`<div class=\"cc-option\" role=\"option\" data-id=\"${c.id}\" data-name=\"${c.name}\"><span class=\"cc-code\">${c.id}</span> ${c.name}</div>`).join('');
+      list.hidden=false;
     }
-    $('#themeToggle').addEventListener('click',()=>{ state.theme= state.theme==='dark'?'light':'dark'; localStorage.setItem('theme',state.theme); applyTheme(); });
-    applyTheme();
-
-    $$('.tab').forEach(b=>b.addEventListener('click',()=>{
-      $$('.tab').forEach(x=>x.setAttribute('aria-selected','false')); b.setAttribute('aria-selected','true');
-      const key=b.dataset.tab; $('#panel-invoice').hidden = key!=='invoice'; $('#panel-journal').hidden = key!=='journal'; $('#panel-reports').hidden = key!=='reports';
-    }));
-
-    // ===== Helpers =====
-    const fmtMoney = x=> Number(x||0).toFixed(2);
-    function lineAmount(tr){ const q=Number($('.qty',tr).value||0), p=Number($('.price',tr).value||0); return q*p; }
-
-    // ===== Cost Center Picker (generic) =====
-    function attachPicker(input,{onPick}={}){
-      const wrap=input.closest('.cc-picker'); const list=$('.cc-dropdown',wrap);
-      function render(q=''){
-        const rows = state.centers.filter(c=> (c.active) && (c.id.toLowerCase().includes(q)||c.name.includes(q)) ).slice(0,30);
-        list.innerHTML = rows.map((c,i)=>`<div class="cc-option" role="option" data-id="${c.id}" data-name="${c.name}"><span class="cc-code">${c.id}</span> ${c.name}</div>`).join('');
-        list.hidden=false;
-      }
-      input.addEventListener('input',()=>render(input.value.trim().toLowerCase()));
-      input.addEventListener('focus',()=>render(''));
-      document.addEventListener('click',e=>{ if(!wrap.contains(e.target)) list.hidden=true; });
-      list.addEventListener('click',e=>{
-        const opt=e.target.closest('.cc-option'); if(!opt) return; input.value=`${opt.dataset.id} — ${opt.dataset.name}`; list.hidden=true; onPick && onPick({id:opt.dataset.id,name:opt.dataset.name});
-      });
-    }
-
-    // ===== Invoice Lines =====
-    const linesBody = $('#linesTable tbody');
-    function addLine(data={}){
-      const tpl=$('#lineRowTpl').content.firstElementChild.cloneNode(true); const tr=tpl;
-      $('.desc',tr).value = data.desc||''; $('.qty',tr).value = data.qty||1; $('.price',tr).value = data.price||0;
-      $('.amount',tr).textContent = fmtMoney(lineAmount(tr));
-      // picker per line
-      attachPicker($('.line-cc',tr),{onPick:(cc)=>{ tr.dataset.cc = JSON.stringify(cc); $('.state',tr).innerHTML='<span class="tag custom">مخصص</span>'; }});
-      // handlers
-      ['input','change'].forEach(ev=>{
-        $('.qty',tr).addEventListener(ev,()=>{ $('.amount',tr).textContent=fmtMoney(lineAmount(tr)); renderTotals(); });
-        $('.price',tr).addEventListener(ev,()=>{ $('.amount',tr).textContent=fmtMoney(lineAmount(tr)); renderTotals(); });
-      });
-      $('.delLine',tr).addEventListener('click',()=>{ tr.remove(); renderTotals(); });
-      $('.allocBtn',tr).addEventListener('click',()=>openAllocForLine(tr));
-      linesBody.appendChild(tr); renderTotals();
-    }
-    function renderTotals(){
-      let sub=0; const allocMap=new Map();
-      $$('#linesTable tbody tr').forEach(tr=>{
-        const amt=lineAmount(tr); sub+=amt;
-        const alloc=JSON.parse(tr.dataset.alloc||'[]');
-        if(alloc.length){ alloc.forEach(a=> allocMap.set(a.cc_id,(allocMap.get(a.cc_id)||0)+Number(a.value||0)) ); }
-        else if(tr.dataset.cc){ const cc=JSON.parse(tr.dataset.cc); allocMap.set(cc.id,(allocMap.get(cc.id)||0)+amt); }
-        else if(state.headCC){ allocMap.set(state.headCC.id,(allocMap.get(state.headCC.id)||0)+amt); }
-      });
-      $('#subTotal').textContent=fmtMoney(sub);
-      const parts=[...allocMap.entries()].map(([id,v])=>`${id}: ${fmtMoney(v)}`);
-      $('#docAlloc').textContent = parts.length? parts.join(' | ') : '—';
-    }
-
-    $('#btnAddLine').addEventListener('click',()=>addLine());
-    $('#btnClearLines').addEventListener('click',()=>{ linesBody.innerHTML=''; renderTotals(); });
-
-    // Head CC & distribution
-    attachPicker($('#cc-head'),{onPick:(cc)=>{ state.headCC=cc; }});
-    $('#btnApplyHead').addEventListener('click',()=>{
-      $$('#linesTable tbody tr').forEach(tr=>{ if(!tr.dataset.cc && !(tr.dataset.alloc)){ $('.state',tr).innerHTML='<span class="tag inherited">موروث</span>'; });
-      renderTotals();
+    input.addEventListener('input',()=>render(input.value.trim().toLowerCase()));
+    input.addEventListener('focus',()=>render(''));
+    document.addEventListener('click',e=>{ if(!wrap.contains(e.target)) list.hidden=true; });
+    list.addEventListener('click',e=>{
+      const opt=e.target.closest('.cc-option'); if(!opt) return; input.value=`${opt.dataset.id} — ${opt.dataset.name}`; list.hidden=true; onPick && onPick({id:opt.dataset.id,name:opt.dataset.name});
     });
+  }
 
-    // ===== Allocation Modal (line/head) =====
-    function openAllocForLine(tr){
-      const total=lineAmount(tr); const rows=JSON.parse(tr.dataset.alloc||'[]');
-      state.allocCtx={ target:'line', id:tr, total, rows };
-      openAllocModal(rows,total,'توزيع مراكز التكلفة للبند');
-    }
-    function openAllocForHead(){
-      // مجموع البنود التي لا تملك CC مخصص
-      let total=0; $$('#linesTable tbody tr').forEach(tr=>{ if(!tr.dataset.cc && !(tr.dataset.alloc)) total+=lineAmount(tr); });
-      state.allocCtx={ target:'head', id:null, total, rows: state.headHeadAlloc||[] };
-      openAllocModal(state.headHeadAlloc||[], total, 'توزيع من رأس المستند');
-    }
-    $('#btnHeadAlloc').addEventListener('click', openAllocForHead);
-
-    function openAllocModal(rows,total,title){
-      $('#allocTitle').textContent=title; const tbody=$('#allocTable tbody'); tbody.innerHTML='';
-      if(!rows.length) rows=[{cc_id:null,percent:null,value:null}];
-      rows.forEach(r=>addAllocRow(r));
-      $('#allocModal').hidden=false; recalcAlloc(total);
-    }
-    function closeAlloc(){ $('#allocModal').hidden=true; }
-    $('#allocClose').addEventListener('click',closeAlloc);
-
-    function addAllocRow(r={}){
-      const tr=$('#allocRowTpl').content.firstElementChild.cloneNode(true);
-      if(r.cc_id) $('.alloc-cc',tr).value=r.cc_id; if(r.percent!=null) $('.pct',tr).value=r.percent; if(r.value!=null) $('.val',tr).value=r.value;
-      attachPicker($('.alloc-cc',tr),{onPick:(cc)=>{ $('.alloc-cc',tr).value=cc.id; recalcAlloc(state.allocCtx.total); }});
-      $('.pct',tr).addEventListener('input',()=>{ const p=Number($('.pct',tr).value||0); $('.val',tr).value=(p/100)*state.allocCtx.total; recalcAlloc(state.allocCtx.total); })
-      $('.val',tr).addEventListener('input',()=>{ const v=Number($('.val',tr).value||0); $('.pct',tr).value= state.allocCtx.total? (v/state.allocCtx.total)*100 : 0; recalcAlloc(state.allocCtx.total); })
-      $('.removeAlloc',tr).addEventListener('click',()=>{ tr.remove(); recalcAlloc(state.allocCtx.total); })
-      $('#allocTable tbody').appendChild(tr);
-    }
-    $('#allocAdd').addEventListener('click',()=>addAllocRow({}));
-
-    function recalcAlloc(total){
-      let p=0,v=0; const rows=[]; let ok=false; let neg=false;
-      $$('#allocTable tbody tr').forEach(tr=>{
-        const cc=$('.alloc-cc',tr).value.trim(); const pct=Number($('.pct',tr).value||0); const val=Number($('.val',tr).value||0);
-        if(pct<0||val<0) neg=true; p+=pct; v+=val; if(cc) rows.push({cc_id:cc,percent: pct||null,value: val||null});
-      });
-      $('#sumPct').textContent=`${p.toFixed(2)}%`; $('#sumVal').textContent=v.toFixed(2);
-      ok = (!neg) && (Math.abs(p-100)<=0.01 || Math.abs(v-total)<=0.01) && rows.length>0;
-      $('#allocError').textContent = neg? 'لا يُسمح بقيم سالبة.' : (!ok? 'المجموع غير صحيح — يجب أن يساوي مجموع النسب 100% أو مجموع القيم إجمالي البند.':'' );
-      $('#allocSave').disabled=!ok; state.allocCtx.rows=rows; state.allocCtx.valid=ok;
-    }
-
-    $('#allocSave').addEventListener('click',()=>{
-      if(!state.allocCtx?.valid) return; const rows=state.allocCtx.rows; const total=state.allocCtx.total;
-      const normalized = rows.map(r=>({ cc_id:r.cc_id, percent: r.percent!=null? Number(r.percent): (r.value!=null? (Number(r.value)/total)*100: null), value: r.value!=null? Number(r.value): (r.percent!=null? (Number(r.percent)/100)*total: null) }));
-      if(state.allocCtx.target==='line'){
-        const tr=state.allocCtx.id; tr.dataset.alloc = JSON.stringify(normalized); delete tr.dataset.cc; $('.state',tr).innerHTML='<span class="tag multi">متعدد</span>';
-      }else if(state.allocCtx.target==='head'){
-        state.headHeadAlloc = normalized;
-        // طبّق فقط على البنود الموروثة
-        $$('#linesTable tbody tr').forEach(tr=>{ if(!tr.dataset.cc && !(tr.dataset.alloc)){ tr.dataset.alloc = JSON.stringify(normalized.map(a=>({cc_id:a.cc_id,percent:a.percent,value:(a.percent/100)*lineAmount(tr)}))); $('.state',tr).innerHTML='<span class="tag multi">متعدد</span>'; } });
-      } else if(state.allocCtx.target==='jv-line'){
-        const idx=state.allocCtx.id; state.jv.lines[idx].alloc = normalized; renderJVLines();
-      }
-      closeAlloc(); renderTotals();
+  // ===== Invoice Lines =====
+  const linesBody = must('linesTable')?.querySelector('tbody');
+  function lineAmount(tr){ const q=Number(tr.querySelector('.qty')?.value||0), p=Number(tr.querySelector('.price')?.value||0); return q*p; }
+  function addLine(data={}){
+    const tpl=document.getElementById('lineRowTpl'); if(!tpl||!linesBody) return; const tr=tpl.content.firstElementChild.cloneNode(true);
+    tr.querySelector('.desc').value = data.desc||''; tr.querySelector('.qty').value = data.qty||1; tr.querySelector('.price').value = data.price||0;
+    tr.querySelector('.amount').textContent = fmtMoney(lineAmount(tr));
+    attachPicker(tr.querySelector('.line-cc'),{onPick:(cc)=>{ tr.dataset.cc = JSON.stringify(cc); tr.querySelector('.state').innerHTML='<span class=\"tag custom\">مخصص</span>'; renderTotals(); }});
+    ['input','change'].forEach(ev=>{
+      tr.querySelector('.qty').addEventListener(ev,()=>{ tr.querySelector('.amount').textContent=fmtMoney(lineAmount(tr)); renderTotals(); });
+      tr.querySelector('.price').addEventListener(ev,()=>{ tr.querySelector('.amount').textContent=fmtMoney(lineAmount(tr)); renderTotals(); });
     });
-
-    // Validate & Save & Post (Demo)
-    $('#btnValidate').addEventListener('click',()=>{
-      const ok = $$('#linesTable tbody tr').length>0; alert(ok? '✅ لا توجد مشاكل واضحة في التوزيع.' : 'يرجى إضافة بنود.');
+    tr.querySelector('.delLine').addEventListener('click',()=>{ tr.remove(); renderTotals(); });
+    tr.querySelector('.allocBtn').addEventListener('click',()=>openAllocForLine(tr));
+    linesBody.appendChild(tr); renderTotals();
+  }
+  function renderTotals(){
+    if(!linesBody) return; let sub=0; const allocMap=new Map();
+    linesBody.querySelectorAll('tr').forEach(tr=>{
+      const amt=lineAmount(tr); sub+=amt;
+      const alloc=JSON.parse(tr.dataset.alloc||'[]');
+      if(alloc.length){ alloc.forEach(a=> allocMap.set(a.cc_id,(allocMap.get(a.cc_id)||0)+Number(a.value||0)) ); }
+      else if(tr.dataset.cc){ const cc=JSON.parse(tr.dataset.cc); allocMap.set(cc.id,(allocMap.get(cc.id)||0)+amt); }
+      else if(state.headCC){ allocMap.set(state.headCC.id,(allocMap.get(state.headCC.id)||0)+amt); }
     });
-    $('#btnSaveDraft').addEventListener('click',()=>{ alert('💾 تم حفظ المسودة (محاكاة).'); });
-    $('#btnPost').addEventListener('click',()=>{ alert('🚀 تم ترحيل الفاتورة (محاكاة).'); });
+    const subEl = document.getElementById('subTotal'); if(subEl) subEl.textContent=fmtMoney(sub);
+    const parts=[...allocMap.entries()].map(([id,v])=>`${id}: ${fmtMoney(v)}`);
+    const docAlloc = document.getElementById('docAlloc'); if(docAlloc) docAlloc.textContent = parts.length? parts.join(' | ') : '—';
+  }
 
-    // ===== JV: Rebind cost centers only =====
-    $('#btnLoadJV').addEventListener('click',()=>{
-      const no=$('#jvNumber').value.trim(); if(!no) return alert('أدخل رقم القيد');
-      // بيانات وهمية
-      state.jv.loaded=true; state.jv.headCC=null; state.jv.lines=[
-        {acc:'110101-العملاء', debit:1000, credit:0, cc:null, alloc:[]},
-        {acc:'410100-إيرادات', debit:0, credit:1000, cc:null, alloc:[]},
-      ];
-      renderJVLines();
+  const btnAddLine = must('btnAddLine'); if(btnAddLine) btnAddLine.addEventListener('click',()=>addLine());
+  const btnClearLines = must('btnClearLines'); if(btnClearLines) btnClearLines.addEventListener('click',()=>{ if(linesBody){ linesBody.innerHTML=''; renderTotals(); }});
+
+  attachPicker(must('cc-head'),{onPick:(cc)=>{ state.headCC=cc; }});
+  const btnApplyHead = must('btnApplyHead'); if(btnApplyHead) btnApplyHead.addEventListener('click',()=>{
+    if(!linesBody) return; linesBody.querySelectorAll('tr').forEach(tr=>{ if(!tr.dataset.cc && !(tr.dataset.alloc)){ tr.querySelector('.state').innerHTML='<span class=\"tag inherited\">موروث</span>'; } });
+    renderTotals();
+  });
+
+  // ===== Allocation Modal =====
+  const allocModal = must('allocModal');
+  const allocTableBody = must('allocTable')?.querySelector('tbody');
+  function openAllocForLine(tr){ const total=lineAmount(tr); const rows=JSON.parse(tr.dataset.alloc||'[]'); state.allocCtx={ target:'line', id:tr, total, rows }; openAllocModal(rows,total,'توزيع مراكز التكلفة للبند'); }
+  function openAllocForHead(){ let total=0; if(linesBody){ linesBody.querySelectorAll('tr').forEach(tr=>{ if(!tr.dataset.cc && !(tr.dataset.alloc)) total+=lineAmount(tr); }); }
+    state.allocCtx={ target:'head', id:null, total, rows: state.headHeadAlloc||[] }; openAllocModal(state.headHeadAlloc||[], total, 'توزيع من رأس المستند'); }
+  const btnHeadAlloc = must('btnHeadAlloc'); if(btnHeadAlloc) btnHeadAlloc.addEventListener('click', openAllocForHead);
+
+  function openAllocModal(rows,total,title){ if(!allocModal||!allocTableBody) return; document.getElementById('allocTitle').textContent=title; allocTableBody.innerHTML=''; if(!rows.length) rows=[{cc_id:null,percent:null,value:null}]; rows.forEach(r=>addAllocRow(r)); allocModal.hidden=false; recalcAlloc(total); }
+  function closeAlloc(){ if(allocModal) allocModal.hidden=true; }
+  const allocClose = must('allocClose'); if(allocClose) allocClose.addEventListener('click',closeAlloc);
+
+  function addAllocRow(r={}){
+    const tpl=document.getElementById('allocRowTpl'); if(!tpl||!allocTableBody) return; const tr=tpl.content.firstElementChild.cloneNode(true);
+    if(r.cc_id) tr.querySelector('.alloc-cc').value=r.cc_id; if(r.percent!=null) tr.querySelector('.pct').value=r.percent; if(r.value!=null) tr.querySelector('.val').value=r.value;
+    attachPicker(tr.querySelector('.alloc-cc'),{onPick:(cc)=>{ tr.querySelector('.alloc-cc').value=cc.id; recalcAlloc(state.allocCtx.total); }});
+    tr.querySelector('.pct').addEventListener('input',()=>{ const p=Number(tr.querySelector('.pct').value||0); tr.querySelector('.val').value=(p/100)*(state.allocCtx.total||0); recalcAlloc(state.allocCtx.total); });
+    tr.querySelector('.val').addEventListener('input',()=>{ const v=Number(tr.querySelector('.val').value||0); tr.querySelector('.pct').value= state.allocCtx.total? (v/state.allocCtx.total)*100 : 0; recalcAlloc(state.allocCtx.total); });
+    tr.querySelector('.removeAlloc').addEventListener('click',()=>{ tr.remove(); recalcAlloc(state.allocCtx.total); });
+    allocTableBody.appendChild(tr);
+  }
+  const allocAdd = must('allocAdd'); if(allocAdd) allocAdd.addEventListener('click',()=>addAllocRow({}));
+
+  function recalcAlloc(total){
+    let p=0,v=0; const rows=[]; let ok=false; let neg=false; if(!allocTableBody) return;
+    allocTableBody.querySelectorAll('tr').forEach(tr=>{
+      const cc=tr.querySelector('.alloc-cc').value.trim(); const pct=Number(tr.querySelector('.pct').value||0); const val=Number(tr.querySelector('.val').value||0);
+      if(pct<0||val<0) neg=true; p+=pct; v+=val; if(cc) rows.push({cc_id:cc,percent: pct||null,value: val||null});
     });
-    function renderJVLines(){
-      const tb=$('#jvLines tbody'); tb.innerHTML='';
-      state.jv.lines.forEach((ln,i)=>{
-        const tr=document.createElement('tr'); tr.innerHTML=`
-          <td>${i+1}</td>
-          <td>${ln.acc}</td>
-          <td>${fmtMoney(ln.debit)}</td>
-          <td>${fmtMoney(ln.credit)}</td>
-          <td><div class="cc-picker"><input class="cc-input jv-cc" placeholder="اختر مركز" value="${ln.cc? ln.cc.id+' — '+ln.cc.name:''}"><div class="cc-dropdown" hidden></div></div></td>
-          <td><button class="btn jv-alloc">📊 توزيع</button></td>
-          <td>${ln.alloc?.length? '<span class="tag multi">متعدد</span>': (ln.cc? '<span class="tag custom">مخصص</span>':'<span class="tag inherited">—</span>')}</td>`;
-        tb.appendChild(tr);
-        // pickers
-        attachPicker($('.jv-cc',tr),{onPick:(cc)=>{ state.jv.lines[i].cc=cc; state.jv.lines[i].alloc=[]; renderJVLines(); }});
-        $('.jv-alloc',tr).addEventListener('click',()=>{
-          const total=(Number(ln.debit)||0)+(Number(ln.credit)||0); state.allocCtx={ target:'jv-line', id:i, total, rows: ln.alloc||[] }; openAllocModal(state.allocCtx.rows,total,`توزيع للبند #${i+1}`);
-        });
-      });
+    const sumPct = must('sumPct'); if(sumPct) sumPct.textContent = `${p.toFixed(2)}%`;
+    const sumVal = must('sumVal'); if(sumVal) sumVal.textContent = v.toFixed(2);
+    const okTotals = (Math.abs(p-100)<=0.01 || Math.abs(v-(total||0))<=0.01);
+    ok = (!neg) && okTotals && rows.length>0;
+    const allocError = must('allocError'); if(allocError) allocError.textContent = neg? 'لا يُسمح بقيم سالبة.' : (!ok? 'المجموع غير صحيح — يجب أن يساوي مجموع النسب 100% أو مجموع القيم إجمالي البند.':'' );
+    const allocSave = must('allocSave'); if(allocSave) allocSave.disabled=!ok; state.allocCtx.rows=rows; state.allocCtx.valid=ok;
+  }
+  const allocSaveBtn = must('allocSave'); if(allocSaveBtn) allocSaveBtn.addEventListener('click',()=>{
+    if(!state.allocCtx?.valid) return; const rows=state.allocCtx.rows; const total=state.allocCtx.total||0;
+    const normalized = rows.map(r=>({ cc_id:r.cc_id, percent: r.percent!=null? Number(r.percent): (r.value!=null? (Number(r.value)/total)*100: null), value: r.value!=null? Number(r.value): (r.percent!=null? (Number(r.percent)/100)*total: null) }));
+    if(state.allocCtx.target==='line'){
+      const tr=state.allocCtx.id; tr.dataset.alloc = JSON.stringify(normalized); delete tr.dataset.cc; tr.querySelector('.state').innerHTML='<span class="tag multi">متعدد</span>';
+    }else if(state.allocCtx.target==='head'){
+      state.headHeadAlloc = normalized; if(linesBody){ linesBody.querySelectorAll('tr').forEach(tr=>{ if(!tr.dataset.cc && !(tr.dataset.alloc)){ const amt=lineAmount(tr); tr.dataset.alloc = JSON.stringify(normalized.map(a=>({cc_id:a.cc_id,percent:a.percent,value:(a.percent/100)*amt}))); tr.querySelector('.state').innerHTML='<span class="tag multi">متعدد</span>'; } }); }
+    }else if(state.allocCtx.target==='jv-line'){
+      const idx=state.allocCtx.id; state.jv.lines[idx].alloc = normalized; renderJVLines();
     }
-    $('#btnJVHeadCC').addEventListener('click',()=>{
-      const ccInput = document.createElement('input'); ccInput.className='cc-input'; ccInput.placeholder='اختر مركز';
-      const wrap=document.createElement('div'); wrap.className='cc-picker'; wrap.appendChild(ccInput); const modal=document.createElement('div');
-      attachPicker(ccInput,{onPick:(cc)=>{ state.jv.headCC=cc; document.body.removeChild(modal); renderJVLines(); }});
-      modal.className='modal'; modal.appendChild(Object.assign(document.createElement('div'),{className:'modal__panel',innerHTML:`<div class="modal-header"><h3>تعيين مركز على مستوى القيد</h3></div><div class="modal-body"></div>`}));
-      modal.querySelector('.modal-body').appendChild(wrap); document.body.appendChild(modal);
-      modal.addEventListener('click',e=>{ if(e.target===modal) document.body.removeChild(modal); });
-    });
-    $('#btnApplyJVHead').addEventListener('click',()=>{
-      if(!state.jv.headCC) return alert('اختر مركز أولًا');
-      state.jv.lines.forEach(ln=>{ if(!ln.cc && !(ln.alloc?.length)) ln.cc=state.jv.headCC; }); renderJVLines();
-    });
-    $('#btnJVValidate').addEventListener('click',()=>{ alert('✅ تم التحقق: لا تعديل على الحسابات، فقط ربط مراكز التكلفة.'); });
-    $('#btnJVCommit').addEventListener('click',()=>{ alert('💾 تم حفظ الربط (محاكاة).'); });
+    closeAlloc(); renderTotals();
+  });
 
-    // ===== Reports (mock) =====
-    attachPicker($('#reportCC'),{onPick:(cc)=>{ $('#reportCC').dataset.selected = ( ($('#reportCC').dataset.selected||'') + ',' + cc.id ).replace(/^,/,''); }});
-    $('#btnRunReport').addEventListener('click',()=>{
-      const tb=$('#reportTable tbody'); tb.innerHTML='';
-      // توليد صفوف من بنود الفاتورة كعرض توضيحي
-      $$('#linesTable tbody tr').forEach((tr,i)=>{
-        const amount=lineAmount(tr);
-        const list = tr.dataset.alloc? JSON.parse(tr.dataset.alloc).map(a=>a.cc_id).join('+') : (tr.dataset.cc? JSON.parse(tr.dataset.cc).id : (state.headCC? state.headCC.id : '—'));
-        const row=document.createElement('tr'); row.innerHTML=`<td>${1000+i}</td><td>${$('#invDate').value||new Date().toISOString().slice(0,10)}</td><td>${list}</td><td>${fmtMoney(amount)}</td>`; tb.appendChild(row);
+  // ===== Actions: Validate/Save/Post (demo) =====
+  const btnValidate = must('btnValidate'); if(btnValidate) btnValidate.addEventListener('click',()=>{ const ok = (linesBody && linesBody.querySelectorAll('tr').length>0); alert(ok? '✅ لا توجد مشاكل واضحة في التوزيع.' : 'يرجى إضافة بنود.'); });
+  const btnSaveDraft = must('btnSaveDraft'); if(btnSaveDraft) btnSaveDraft.addEventListener('click',()=>{ alert('💾 تم حفظ المسودة (محاكاة).'); });
+  const btnPost = must('btnPost'); if(btnPost) btnPost.addEventListener('click',()=>{ alert('🚀 تم ترحيل الفاتورة (محاكاة).'); });
+
+  // ===== JV: Rebind only cost centers =====
+  const btnLoadJV = must('btnLoadJV'); if(btnLoadJV) btnLoadJV.addEventListener('click',()=>{
+    const no=must('jvNumber')?.value.trim(); if(!no) return alert('أدخل رقم القيد');
+    state.jv.loaded=true; state.jv.headCC=null; state.jv.lines=[
+      {acc:'110101-العملاء', debit:1000, credit:0, cc:null, alloc:[]},
+      {acc:'410100-إيرادات', debit:0, credit:1000, cc:null, alloc:[]},
+    ]; renderJVLines();
+  });
+  function renderJVLines(){
+    const tb = must('jvLines')?.querySelector('tbody'); if(!tb) return; tb.innerHTML='';
+    state.jv.lines.forEach((ln,i)=>{
+      const tr=document.createElement('tr'); tr.innerHTML=`
+        <td>${i+1}</td>
+        <td>${ln.acc}</td>
+        <td>${fmtMoney(ln.debit)}</td>
+        <td>${fmtMoney(ln.credit)}</td>
+        <td><div class=\"cc-picker\"><input class=\"cc-input jv-cc\" placeholder=\"اختر مركز\" value=\"${ln.cc? ln.cc.id+' — '+ln.cc.name:''}\"><div class=\"cc-dropdown\" hidden></div></div></td>
+        <td><button class=\"btn jv-alloc\">📊 توزيع</button></td>
+        <td>${ln.alloc?.length? '<span class=\\"tag multi\\">متعدد</span>': (ln.cc? '<span class=\\"tag custom\\">مخصص</span>':'<span class=\\"tag inherited\\">—</span>')}</td>`;
+      tb.appendChild(tr);
+      attachPicker(tr.querySelector('.jv-cc'),{onPick:(cc)=>{ state.jv.lines[i].cc=cc; state.jv.lines[i].alloc=[]; renderJVLines(); }});
+      tr.querySelector('.jv-alloc').addEventListener('click',()=>{
+        const total=(Number(ln.debit)||0)+(Number(ln.credit)||0); state.allocCtx={ target:'jv-line', id:i, total, rows: ln.alloc||[] }; openAllocModal(state.allocCtx.rows,total,`توزيع للبند #${i+1}`);
       });
     });
-    $('#btnExportCSV').addEventListener('click',()=>{
-      const rows = [['DocNo','Date','CCs','Amount']].concat($$('#reportTable tbody tr').map(tr=>[...tr.children].map(td=>td.textContent.trim())));
-      const csv = rows.map(r=>r.join(',')).join('\n'); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='cc-report.csv'; a.click(); URL.revokeObjectURL(a.href);
-    });
+  }
+  const btnJVHead = must('btnJVHeadCC'); if(btnJVHead) btnJVHead.addEventListener('click',()=>{
+    // اختيار بسيط لمركز على مستوى القيد
+    const temp = document.createElement('div'); temp.className='modal'; temp.innerHTML = `<div class=\"modal__panel\"><div class=\"modal-header\"><h3>تعيين مركز على مستوى القيد</h3></div><div class=\"modal-body\"><div class=\"cc-picker\"><input id=\"tmp-jv-cc\" class=\"cc-input\" placeholder=\"اختر مركز\"><div class=\"cc-dropdown\" hidden></div></div></div></div>`;
+    document.body.appendChild(temp); attachPicker(document.getElementById('tmp-jv-cc'),{onPick:(cc)=>{ state.jv.headCC=cc; document.body.removeChild(temp); renderJVLines(); }});
+    temp.addEventListener('click',e=>{ if(e.target===temp) document.body.removeChild(temp); });
+  });
+  const btnApplyJVHead = must('btnApplyJVHead'); if(btnApplyJVHead) btnApplyJVHead.addEventListener('click',()=>{ if(!state.jv.headCC) return alert('اختر مركز أولًا'); state.jv.lines.forEach(ln=>{ if(!ln.cc && !(ln.alloc?.length)) ln.cc=state.jv.headCC; }); renderJVLines(); });
+  const btnJVValidate = must('btnJVValidate'); if(btnJVValidate) btnJVValidate.addEventListener('click',()=>alert('✅ تم التحقق: لا تعديل على الحسابات، فقط ربط مراكز التكلفة.'));
+  const btnJVCommit = must('btnJVCommit'); if(btnJVCommit) btnJVCommit.addEventListener('click',()=>alert('💾 تم حفظ الربط (محاكاة).'));
 
-    // Quick demo data
-    addLine({desc:'خدمة استشارة', qty:2, price:150});
-    addLine({desc:'صيانة شهرية', qty:1, price:300});
-  </script>
+  // ===== Reports (mock) =====
+  attachPicker(must('reportCC'),{onPick:(cc)=>{ const inp=must('reportCC'); inp.dataset.selected = ( (inp.dataset.selected||'') + ',' + cc.id ).replace(/^,/,''); }});
+  const btnRunReport = must('btnRunReport'); if(btnRunReport) btnRunReport.addEventListener('click',()=>{
+    const tb = must('reportTable')?.querySelector('tbody'); if(!tb) return; tb.innerHTML='';
+    if(!linesBody) return; linesBody.querySelectorAll('tr').forEach((tr,i)=>{
+      const amount=lineAmount(tr);
+      const list = tr.dataset.alloc? JSON.parse(tr.dataset.alloc).map(a=>a.cc_id).join('+') : (tr.dataset.cc? JSON.parse(tr.dataset.cc).id : (state.headCC? state.headCC.id : '—'));
+      const row=document.createElement('tr'); row.innerHTML=`<td>${1000+i}</td><td>${must('invDate')?.value||new Date().toISOString().slice(0,10)}</td><td>${list}</td><td>${fmtMoney(amount)}</td>`; tb.appendChild(row);
+    });
+  });
+  const btnExportCSV = must('btnExportCSV'); if(btnExportCSV) btnExportCSV.addEventListener('click',()=>{
+    const tb = must('reportTable')?.querySelector('tbody'); if(!tb) return; const rows = [['DocNo','Date','CCs','Amount']].concat([...
+      tb.querySelectorAll('tr')].map(tr=>[...tr.children].map(td=>td.textContent.trim())));
+    const csv = rows.map(r=>r.join(',')).join('\n'); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='cc-report.csv'; a.click(); URL.revokeObjectURL(a.href);
+  });
+
+  // ===== Seed demo data =====
+  addLine({desc:'خدمة استشارة', qty:2, price:150});
+  addLine({desc:'صيانة شهرية', qty:1, price:300});
+});
+</script>
 </body>
 </html>
