@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>إنشاء فاتورة إلكترونية من بيانات قيد يدوي — Demo</title>
+  <!--
+  README (كيفية التشغيل محليًا)
+  -----------------------------------------:
+  • هذا ملف واحد (index.html). احفظه كملف .html وافتحه مباشرةً في متصفح حديث (Chrome/Edge/Firefox).
+  • لا توجد مكتبات خارجية. كل شيء Vanilla (HTML/CSS/JS).
+  • بيانات اختبار مضمنة (JOURNALS). جرّب البحث برقم القيد J-2025-000186 أو بكلمة "أصل".
+  • التدفق:
+      1) ابحث عن القيد اليدوي واختره.
+      2) راجع التحويل المقترح (Mapping) وحرّر حقول الفاتورة والعميل إذا لزم.
+      3) اضغط "تحقق من جاهزية ZATCA" ثم "توليد الفاتورة".
+      4) بعد النجاح ستعمل أزرار: معاينة/طباعة، تصدير JSON. (تصدير PDF = window.print())
+  • QR هنا Placeholder (تمثيل نصّي/مرئي مبسّط، ليس مولد ZATCA فعلي).
+  • أماكن التوسعة مربوطة بتعليقات // TODO لربط API حقيقي لاحقًا.
+  -----------------------------------------
+  بنية منطقية تحاكي ملفات متعددة ضمن صفحة واحدة:
+  - styles.css            => مضمّن داخل <style id="styles-base">
+  - invoice-preview.css   => مضمّن داخل <style id="styles-print">
+  - app.js + state.js + mapping.js + validators.js + ui.js => ضمن <script type="module">
+  -->
+
+  <style id="styles-base">
+    :root{
+      --blue:#1877f2; /* أزرق قريب من فيسبوك */
+      --blue-600:#166fe0;
+      --blue-700:#125ec8;
+      --bg:#ffffff;
+      --text:#0f172a; /* slate-900 */
+      --muted:#64748b; /* slate-500 */
+      --border:#e2e8f0; /* slate-200 */
+      --success:#16a34a;
+      --error:#dc2626;
+      --warning:#f59e0b;
+      --card:#ffffff;
+      --shadow:0 8px 20px rgba(2,6,23,.06);
+      --radius:16px;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#0b1220;
+        --text:#e5e7eb;
+        --muted:#94a3b8;
+        --border:#1f2a44;
+        --card:#0f172a;
+        --shadow:0 8px 24px rgba(0,0,0,.35);
+      }
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:var(--bg); color:var(--text);
+      font: 15px/1.6 system-ui, -apple-system, Segoe UI, Roboto, "Noto Naskh Arabic UI", Arial, sans-serif;
+    }
+
+    /* رأس ثابت */
+    header.appbar{
+      position:sticky; top:0; z-index:50; backdrop-filter:saturate(1.2) blur(6px);
+      background:color-mix(in srgb, var(--bg) 70%, transparent);
+      border-bottom:1px solid var(--border);
+    }
+    .appbar .wrap{display:flex; align-items:center; gap:14px; padding:10px 16px; max-width:1200px; margin:auto}
+    .logo{width:28px; height:28px; border-radius:8px; background:var(--blue); display:grid; place-items:center; color:white; font-weight:700}
+    .title{font-weight:800}
+    .badge{margin-inline-start:auto; font-size:12px; color:var(--muted)}
+
+    /* تخطيط الصفحة */
+    main{max-width:1200px; margin:18px auto; padding:0 12px}
+    .grid{display:grid; gap:16px}
+    @media(min-width:980px){
+      .grid-cols-2{grid-template-columns:1.1fr .9fr}
+    }
+
+    .card{
+      background:var(--card); border:1px solid var(--border);
+      border-radius:var(--radius); box-shadow:var(--shadow);
+    }
+    .card header{padding:14px 16px; border-bottom:1px solid var(--border); font-weight:700}
+    .card .content{padding:14px 16px}
+
+    /* أزرار */
+    .row{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+    .btn{
+      background:var(--blue); color:#fff; border:none; cursor:pointer;
+      padding:10px 14px; border-radius:12px; font-weight:700; transition:.15s;
+    }
+    .btn:hover{background:var(--blue-600)}
+    .btn:active{transform:translateY(1px)}
+    .btn.ghost{background:transparent; color:var(--blue); border:1px solid var(--blue)}
+    .btn.muted{background:#eef2ff; color:#1e3a8a; border:1px solid #c7d2fe}
+    .btn.success{background:var(--success)}
+    .btn.error{background:var(--error)}
+
+    /* نماذج */
+    .field{margin:8px 0}
+    .field label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
+    .input, select, textarea{
+      width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:transparent; color:var(--text);
+    }
+    .input:focus, select:focus, textarea:focus{outline:2px solid color-mix(in srgb, var(--blue) 30%, transparent)}
+    .hint{font-size:12px; color:var(--muted)}
+    .error-text{color:var(--error); font-size:12px; margin-top:4px}
+
+    /* جداول */
+    table{width:100%; border-collapse:separate; border-spacing:0}
+    thead th{position:sticky; top:0; background:color-mix(in srgb, var(--card) 95%, var(--blue) 5%); text-align:start; font-size:12px; color:var(--muted); border-bottom:1px solid var(--border)}
+    th,td{padding:10px 8px}
+    tbody tr{border-bottom:1px solid var(--border)}
+    tbody tr:hover{background:color-mix(in srgb, var(--blue) 7%, transparent)}
+
+    /* توست */
+    .toast{position:fixed; inset-inline:0; bottom:16px; display:grid; place-items:center; z-index:60; pointer-events:none}
+    .toast .msg{pointer-events:auto; background:var(--card); border:1px solid var(--border); padding:10px 14px; border-radius:12px; box-shadow:var(--shadow)}
+
+    /* مودال المعاينة */
+    .modal{position:fixed; inset:0; background:rgba(2,6,23,.35); display:none; align-items:center; justify-content:center; z-index:70; padding:20px}
+    .modal.show{display:flex}
+    .modal .panel{width:min(900px, 100%); max-height:90vh; overflow:auto; background:#fff; color:#111827; border-radius:16px; box-shadow:0 16px 40px rgba(0,0,0,.35); padding:24px}
+
+    /* بطاقة Check-list */
+    .checklist{display:grid; gap:8px; font-size:14px}
+
+    /* شارة الحالة أعلى الصفحة */
+    .status-chip{display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-size:12px; background:#f8fafc; color:#0f172a; border:1px solid var(--border)}
+
+    /* منطقة QR */
+    .qr-box{display:grid; grid-template-columns:120px 1fr; gap:12px; align-items:center}
+    canvas.qr{width:120px; height:120px; border:1px dashed var(--border); border-radius:8px}
+
+    /* أشرطة فرعية */
+    .subgrid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px}
+    @media(max-width:640px){.subgrid{grid-template-columns:1fr}}
+
+    /* أزرار أسفل الحقول */
+    .toolbar{display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-start}
+
+  </style>
+
+  <!-- طباعة/معاينة الفاتورة -->
+  <style id="styles-print">
+    @media print{
+      body{background:#fff; color:#111827}
+      header.appbar, .no-print{display:none !important}
+      .print-area{display:block}
+    }
+    .invoice-preview{font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; direction:rtl}
+    .invoice{max-width:820px; margin:auto; border:1px solid #e5e7eb; border-radius:12px; padding:24px}
+    .invoice header{display:flex; align-items:flex-start; justify-content:space-between; gap:10px}
+    .invoice .logo{width:48px; height:48px; border-radius:10px; background:#1877f2; color:#fff; display:grid; place-items:center; font-weight:800}
+    .invoice h1{font-size:20px; margin:0}
+    .muted{color:#64748b}
+    .grid2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px}
+    .box{border:1px solid #e5e7eb; border-radius:10px; padding:12px}
+    .totals{display:grid; gap:6px}
+    .qr-row{display:flex; gap:12px; align-items:center}
+    .qr{width:120px; height:120px; border:1px dashed #cbd5e1; border-radius:8px}
+    table.inv{width:100%; border-collapse:separate; border-spacing:0}
+    table.inv thead th{font-size:12px; color:#64748b; border-bottom:1px solid #e5e7eb}
+    table.inv td, table.inv th{padding:10px}
+    table.inv tbody tr{border-bottom:1px solid #f1f5f9}
+  </style>
+</head>
+<body>
+  <header class="appbar" role="banner">
+    <div class="wrap" aria-label="شريط علوي">
+      <div class="logo" aria-hidden="true">SL</div>
+      <div class="title">إنشاء فاتورة إلكترونية من بيانات قيد يدوي</div>
+      <div class="badge"><span class="status-chip" id="statusChip">مسودة</span></div>
+    </div>
+  </header>
+
+  <main>
+    <div class="grid grid-cols-2">
+      <!-- قسم البحث عن القيد -->
+      <section class="card" aria-label="بحث القيد">
+        <header>بحث القيد اليدوي</header>
+        <div class="content">
+          <div class="row">
+            <input id="searchInput" class="input" type="search" placeholder="ابحث برقم القيد / التاريخ / الوصف" aria-label="حقل البحث" />
+            <button class="btn" id="btnSearch" aria-label="زر البحث">بحث</button>
+            <button class="btn ghost" id="btnReset">مسح</button>
+          </div>
+          <div class="hint">نتائج البحث أدناه. اضغط "اختيار" لتحميل القيد.</div>
+          <div style="margin-top:10px; max-height:280px; overflow:auto; border:1px solid var(--border); border-radius:12px">
+            <table aria-label="جدول النتائج">
+              <thead>
+                <tr>
+                  <th>رقم القيد</th>
+                  <th>التاريخ</th>
+                  <th>الوصف</th>
+                  <th>الحالة</th>
+                  <th>المبلغ</th>
+                  <th>إجراء</th>
+                </tr>
+              </thead>
+              <tbody id="resultsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- قسم التحويل والفاتورة -->
+      <section class="card" aria-label="محول القيد إلى فاتورة">
+        <header>مُحوِّل القيد → فاتورة</header>
+        <div class="content" id="converter">
+          <!-- تفاصيل القيد المختار -->
+          <div class="field">
+            <label>القيد المختار</label>
+            <div class="subgrid">
+              <input class="input" id="jId" placeholder="رقم القيد" readonly aria-readonly="true" />
+              <input class="input" id="jDate" placeholder="تاريخ القيد" readonly aria-readonly="true" />
+              <input class="input" id="jCurr" placeholder="العملة" readonly aria-readonly="true" />
+              <input class="input" id="jDesc" placeholder="الوصف" readonly aria-readonly="true" />
+            </div>
+          </div>
+
+          <!-- خريطة الربط -->
+          <div class="field">
+            <label>تحديد حساب العميل (إلزامي)</label>
+            <div class="row">
+              <select id="customerSelect" aria-label="اختيار العميل" class="input" style="max-width:60%"></select>
+              <button class="btn muted" id="btnUseGuess">اقتراح القيد</button>
+            </div>
+            <div id="errCustomer" class="error-text" hidden>يجب اختيار عميل.</div>
+          </div>
+
+          <!-- حقول الفاتورة الأساسية -->
+          <div class="card" style="margin-top:10px">
+            <header>حقول الفاتورة</header>
+            <div class="content">
+              <div class="subgrid">
+                <div class="field">
+                  <label>اسم البائع (المنشأة)</label>
+                  <input class="input" id="sellerName" placeholder="اسم المنشأة" />
+                  <div id="errSellerName" class="error-text" hidden>هذا الحقل إلزامي.</div>
+                </div>
+                <div class="field">
+                  <label>الرقم الضريبي (البائع)</label>
+                  <input class="input" id="sellerVAT" placeholder="الرقم الضريبي" />
+                  <div id="errSellerVAT" class="error-text" hidden>الرقم الضريبي مطلوب.</div>
+                </div>
+                <div class="field">
+                  <label>عنوان البائع</label>
+                  <input class="input" id="sellerAddr" placeholder="العنوان (اختياري)" />
+                </div>
+                <div class="field">
+                  <label>العملة</label>
+                  <input class="input" id="invCurr" value="SAR" />
+                </div>
+              </div>
+              <hr style="border:none; border-top:1px solid var(--border); margin:10px 0"/>
+              <div class="subgrid">
+                <div class="field">
+                  <label>اسم العميل</label>
+                  <input class="input" id="buyerName" placeholder="اسم العميل" />
+                  <div id="errBuyerName" class="error-text" hidden>اسم العميل مطلوب.</div>
+                </div>
+                <div class="field">
+                  <label>الرقم الضريبي (العميل)</label>
+                  <input class="input" id="buyerVAT" placeholder="اختياري" />
+                </div>
+                <div class="field">
+                  <label>عنوان العميل</label>
+                  <input class="input" id="buyerAddr" placeholder="اختياري" />
+                </div>
+                <div class="field">
+                  <label>رقم العميل</label>
+                  <input class="input" id="buyerCode" placeholder="اختياري" />
+                </div>
+              </div>
+              <hr style="border:none; border-top:1px solid var(--border); margin:10px 0"/>
+              <div class="subgrid">
+                <div class="field">
+                  <label>رقم الفاتورة التسلسلي</label>
+                  <input class="input" id="invId" placeholder="سيُولّد تلقائيًا" readonly />
+                </div>
+                <div class="field">
+                  <label>تاريخ/وقت الإصدار</label>
+                  <input class="input" id="issueDate" type="datetime-local" />
+                  <div id="errIssueDate" class="error-text" hidden>تاريخ/وقت الإصدار مطلوب.</div>
+                </div>
+              </div>
+
+              <!-- عناصر الفاتورة -->
+              <div class="field">
+                <label>عناصر الفاتورة</label>
+                <div style="border:1px solid var(--border); border-radius:12px; overflow:auto">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th style="width:30%">الوصف</th>
+                        <th>الكمية</th>
+                        <th>سعر الوحدة</th>
+                        <th>نسبة الضريبة %</th>
+                        <th>قيمة الضريبة</th>
+                        <th>الإجمالي</th>
+                        <th class="no-print">💠</th>
+                      </tr>
+                    </thead>
+                    <tbody id="linesBody"></tbody>
+                  </table>
+                </div>
+                <div class="toolbar no-print" style="margin-top:8px">
+                  <button class="btn" id="btnAddLine">+ إضافة سطر</button>
+                </div>
+                <div id="errLines" class="error-text" hidden>يجب إضافة سطر واحد على الأقل بمبلغ صالح.</div>
+              </div>
+
+              <!-- الإجماليات + QR -->
+              <div class="subgrid">
+                <div>
+                  <div class="field">
+                    <label>إجماليات</label>
+                    <div class="totals">
+                      <div>الإجمالي قبل الضريبة: <strong id="tNet">0.00</strong></div>
+                      <div>الضريبة: <strong id="tVAT">0.00</strong></div>
+                      <div>الإجمالي شامل الضريبة: <strong id="tGrand">0.00</strong></div>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div class="field">
+                    <label>QR / TLV (Placeholder)</label>
+                    <div class="qr-box">
+                      <canvas class="qr" id="qrCanvas" aria-label="رمز استجابة سريع تجريبي"></canvas>
+                      <div>
+                        <textarea id="qrText" class="input" rows="4" placeholder="TLV:..."></textarea>
+                        <div class="toolbar" style="margin-top:8px">
+                          <button class="btn ghost" id="btnGenQR">تحديث QR</button>
+                          <button class="btn" id="btnCopyQR">نسخ نص TLV/QR</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- أزرار الإجراءات -->
+              <div class="toolbar no-print" style="margin-top:12px">
+                <button class="btn muted" id="btnZATCA">تحقق من جاهزية ZATCA</button>
+                <button class="btn" id="btnSaveDraft">حفظ كمسودة</button>
+                <button class="btn success" id="btnGenerate">توليد الفاتورة</button>
+                <button class="btn ghost" id="btnPreview" disabled>معاينة/طباعة</button>
+                <button class="btn ghost" id="btnExportPDF" disabled>تصدير PDF</button>
+                <button class="btn ghost" id="btnExportJSON" disabled>تصدير JSON</button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- تفاصيل بنود القيد المختار -->
+      <section class="card" aria-label="تفاصيل القيد" style="grid-column:1 / -1">
+        <header>تفاصيل القيد المختار</header>
+        <div class="content">
+          <div style="max-height:220px; overflow:auto; border:1px solid var(--border); border-radius:12px">
+            <table aria-label="بنود القيد">
+              <thead>
+                <tr>
+                  <th>الحساب</th>
+                  <th>مدين</th>
+                  <th>دائن</th>
+                  <th>الوصف</th>
+                </tr>
+              </thead>
+              <tbody id="journalLines"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- مودال المعاينة / قائمة التحقق -->
+  <div class="modal" id="modal">
+    <div class="panel" role="dialog" aria-modal="true">
+      <div class="row" style="justify-content:space-between; align-items:center; margin-bottom:12px">
+        <strong id="modalTitle">معاينة الفاتورة</strong>
+        <button class="btn ghost" id="btnCloseModal" aria-label="إغلاق">إغلاق</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" aria-live="polite" aria-atomic="true" hidden>
+    <div class="msg" id="toastMsg">رسالة</div>
+  </div>
+
+  <script type="module">
+    // ===============================
+    // state.js — حالة التطبيق
+    // ===============================
+    const State = {
+      journals: [],
+      current: { journal: null, invoice: null, generated: false },
+      nextSerial(){
+        const y = new Date().getFullYear();
+        const key = `INV-SERIAL-${y}`;
+        let n = Number(localStorage.getItem(key) || 0) + 1;
+        localStorage.setItem(key, String(n));
+        return `INV-${y}-${String(n).padStart(6,'0')}`;
+      }
+    };
+
+    // ===============================
+    // بيانات تجريبية — JOURNALS (مطلوبة)
+    // ===============================
+    const JOURNALS = [
+      {
+        id: "J-2025-000186",
+        date: "2025-10-10T14:25:00",
+        currency: "SAR",
+        description: "بيع أصل رقم 37",
+        lines: [
+          { account: "1110 أصل معدات", debit: 0, credit: 100000, note: "سعر بيع الأصل" },
+          { account: "2110 ضريبة مخرجات", debit: 0, credit: 15000, note: "VAT 15%" },
+          { account: "1310 مجمع إهلاك", debit: 20000, credit: 0, note: "تسوية محاسبية" },
+          { account: "3110 ربح/خسارة بيع أصل", debit: 0, credit: 5000, note: "ربح بيع" },
+          { account: "1210 عملاء - الروّاسي", debit: 110000, credit: 0, note: "طرف عميل" }
+        ],
+        customerGuess: { name: "شركة الروّاسي", vat: "300000000000003", code: "C-001" }
+      }
+    ];
+
+    // تحميل البيانات التجريبية إلى الحالة
+    State.journals = JOURNALS;
+
+    // ===============================
+    // أدوات مساعدة عامة
+    // ===============================
+    const $ = (s, ctx=document) => ctx.querySelector(s);
+    const $$ = (s, ctx=document) => Array.from(ctx.querySelectorAll(s));
+    const fmt = (n) => Number(n||0).toLocaleString('ar-EG',{minimumFractionDigits:2, maximumFractionDigits:2});
+    const parseNum = (v) => isFinite(+v) ? +v : 0;
+
+    function toast(msg, ms=2200){
+      const box = $('#toast'); const t = $('#toastMsg');
+      t.textContent = msg; box.hidden = false;
+      setTimeout(()=> box.hidden = true, ms);
+    }
+
+    function setStatus(label){
+      $('#statusChip').textContent = label;
+    }
+
+    // ===============================
+    // mapping.js — تحويل القيد → فاتورة
+    // ===============================
+    const ExcludedAccounts = [/مجمع\s*إهلاك/, /ربح\/خسارة/, /تسوية/i];
+    const CustomerAccountHint = /(عملاء|حسابات\s*مدينة|AR)/i;
+    const VATAccountHint = /(ضريبة\s*مخرجات|VAT)/i;
+
+    function detectCustomerLine(lines){
+      // أول بند (مدين) يشير لعملاء/AR
+      for(const ln of lines){
+        if(ln.debit>0 && CustomerAccountHint.test(ln.account)) return ln;
+      }
+      return null;
+    }
+
+    function detectVATTotal(lines){
+      let vat = 0;
+      for(const ln of lines){
+        if(VATAccountHint.test(ln.account)) vat += ln.credit; // مخرجات عادة دائن
+      }
+      return vat;
+    }
+
+    function isExcludedRevenueAccount(acc){
+      return ExcludedAccounts.some(rx => rx.test(acc));
+    }
+
+    function journalToInvoice(j){
+      // خطوط الفاتورة = البنود الدائنة الإيرادية/سعر بيع أصل (غير المستبعدة)
+      const invLines = [];
+      const vatDetected = detectVATTotal(j.lines);
+
+      for(const ln of j.lines){
+        if(ln.credit>0 && !isExcludedRevenueAccount(ln.account)){
+          invLines.push({
+            description: ln.note || ln.account,
+            qty: 1,
+            unitPrice: ln.credit - (vatDetected?0:0), // يُعدّل لاحقًا عند توزيع الضريبة
+            vatRate: vatDetected? 15 : 15, // افتراضي 15%
+            vatAmount: 0,
+            lineTotal: 0
+          });
+        }
+      }
+
+      const custLn = detectCustomerLine(j.lines);
+      const buyer = {
+        name: j.customerGuess?.name || '',
+        vat: j.customerGuess?.vat || '',
+        address: '',
+        code: j.customerGuess?.code || ''
+      };
+
+      const invoice = {
+        id: State.nextSerial(),
+        issueDate: new Date().toISOString().slice(0,16),
+        currency: j.currency || 'SAR',
+        lines: invLines,
+        totals: { net:0, vat:0, grand:0 },
+        sourceJournalId: j.id
+      };
+
+      return { buyer, invoice, custLn, vatDetected };
+    }
+
+    function recalcTotals(){
+      const rows = $$('#linesBody tr');
+      let net=0, vat=0, grand=0;
+      rows.forEach(tr=>{
+        const qty = parseNum(tr.querySelector('.qty').value);
+        const price = parseNum(tr.querySelector('.price').value);
+        const rate = parseNum(tr.querySelector('.rate').value);
+        const lineNet = qty * price;
+        const lineVAT = (lineNet * rate)/100;
+        const lineTotal = lineNet + lineVAT;
+        tr.querySelector('.vat').textContent = fmt(lineVAT);
+        tr.querySelector('.total').textContent = fmt(lineTotal);
+        net += lineNet; vat += lineVAT; grand += lineTotal;
+      });
+      $('#tNet').textContent = fmt(net);
+      $('#tVAT').textContent = fmt(vat);
+      $('#tGrand').textContent = fmt(grand);
+      return {net, vat, grand};
+    }
+
+    // ===============================
+    // validators.js — التحقق
+    // ===============================
+    function validate(){
+      let ok = true;
+      const setErr = (id, show) => { const el = $(id); if(!el) return; el.hidden = !show; if(show) ok=false; };
+      setErr('#errSellerName', !$('#sellerName').value.trim());
+      setErr('#errSellerVAT', !$('#sellerVAT').value.trim());
+      setErr('#errBuyerName', !$('#buyerName').value.trim());
+      setErr('#errIssueDate', !$('#issueDate').value);
+
+      // عميل
+      const custSel = $('#customerSelect');
+      setErr('#errCustomer', !custSel.value);
+
+      // على الأقل سطر واحد صالح
+      const rows = $$('#linesBody tr');
+      let hasValid = false;
+      for(const tr of rows){
+        const qty = parseNum(tr.querySelector('.qty').value);
+        const price = parseNum(tr.querySelector('.price').value);
+        const rate = parseNum(tr.querySelector('.rate').value);
+        if(qty>0 && price>=0 && rate>=0 && rate<=100){ hasValid = true; break; }
+      }
+      setErr('#errLines', !hasValid);
+
+      // الإجماليات تتطابق مع مجموع الجدول (يُعاد حسابها هنا)
+      recalcTotals();
+      return ok;
+    }
+
+    function zatcaChecklist(){
+      const items = [
+        {label:'اسم البائع', ok: !!$('#sellerName').value.trim()},
+        {label:'الرقم الضريبي للبائع', ok: !!$('#sellerVAT').value.trim()},
+        {label:'اسم العميل', ok: !!$('#buyerName').value.trim()},
+        {label:'تاريخ/وقت الإصدار', ok: !!$('#issueDate').value},
+        {label:'رقم فاتورة تسلسلي', ok: !!$('#invId').value},
+        {label:'إجماليات محسوبة', ok: recalcTotals().grand>0},
+        {label:'تفاصيل الضريبة (نسبة/قيمة)', ok: $$('#linesBody tr').length>0}
+      ];
+      return items;
+    }
+
+    // ===============================
+    // ui.js — الربط بالواجهة
+    // ===============================
+    function renderResults(list){
+      const tb = $('#resultsBody'); tb.innerHTML = '';
+      for(const j of list){
+        const amt = j.lines.reduce((s,ln)=> s + ln.credit - ln.debit, 0);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${j.id}</td>
+          <td>${new Date(j.date).toLocaleString('ar-SA')}</td>
+          <td>${j.description}</td>
+          <td>مقفل</td>
+          <td>${fmt(amt)}</td>
+          <td><button class="btn" data-id="${j.id}">اختيار</button></td>
+        `;
+        tb.appendChild(tr);
+      }
+      // أزرار اختيار
+      tb.querySelectorAll('button.btn').forEach(btn=>{
+        btn.addEventListener('click', ()=> selectJournal(btn.dataset.id));
+      });
+    }
+
+    function renderJournalLines(j){
+      const tb = $('#journalLines'); tb.innerHTML='';
+      j.lines.forEach(ln=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${ln.account}</td>
+          <td>${fmt(ln.debit)}</td>
+          <td>${fmt(ln.credit)}</td>
+          <td>${ln.note||''}</td>
+        `;
+        tb.appendChild(tr);
+      });
+    }
+
+    function populateCustomerOptions(j){
+      const sel = $('#customerSelect'); sel.innerHTML = '<option value="">— اختر —</option>';
+      // استخرج حسابات محتملة للعميل (مدين) + تخمين من القيد
+      const candidates = [];
+      for(const ln of j.lines){
+        if(ln.debit>0){ candidates.push({id: ln.account, name: ln.account}); }
+      }
+      const guess = j.customerGuess?.name ? [{id:'guess', name:`${j.customerGuess.name} (اقتراح)`}] : [];
+      [...guess, ...candidates].forEach(c=>{
+        const opt = document.createElement('option'); opt.value=c.id; opt.textContent=c.name; sel.appendChild(opt);
+      });
+    }
+
+    function renderInvoiceForm(bundle){
+      // تعبئة المعطيات
+      $('#invId').value = bundle.invoice.id;
+      $('#issueDate').value = bundle.invoice.issueDate;
+      $('#invCurr').value = bundle.invoice.currency;
+
+      // عميل مقترح
+      $('#buyerName').value = bundle.buyer.name||'';
+      $('#buyerVAT').value = bundle.buyer.vat||'';
+      $('#buyerAddr').value = bundle.buyer.address||'';
+      $('#buyerCode').value = bundle.buyer.code||'';
+
+      // خطوط
+      const tb = $('#linesBody'); tb.innerHTML='';
+      bundle.invoice.lines.forEach((ln, idx)=> addLineRow(ln));
+      recalcTotals();
+    }
+
+    function addLineRow(ln={description:'', qty:1, unitPrice:0, vatRate:15}){
+      const tb = $('#linesBody');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input class="input desc" value="${ln.description||''}"/></td>
+        <td><input class="input qty" type="number" min="0" step="1" value="${ln.qty||1}"></td>
+        <td><input class="input price" type="number" min="0" step="0.01" value="${ln.unitPrice||0}"></td>
+        <td><input class="input rate" type="number" min="0" max="100" step="0.1" value="${ln.vatRate??15}"></td>
+        <td class="vat">0.00</td>
+        <td class="total">0.00</td>
+        <td class="no-print"><button class="btn ghost btnDel">حذف</button></td>
+      `;
+      tb.appendChild(tr);
+      tr.querySelectorAll('input').forEach(i=> i.addEventListener('input', recalcTotals));
+      tr.querySelector('.btnDel').addEventListener('click', ()=>{ tr.remove(); recalcTotals(); });
+      recalcTotals();
+    }
+
+    function selectJournal(id){
+      const j = State.journals.find(x=> x.id===id);
+      if(!j){ toast('لم يتم العثور على القيد'); return; }
+      State.current.journal = j;
+      $('#jId').value = j.id; $('#jDate').value = new Date(j.date).toLocaleString('ar-SA');
+      $('#jCurr').value = j.currency; $('#jDesc').value = j.description;
+      renderJournalLines(j);
+      populateCustomerOptions(j);
+
+      const bundle = journalToInvoice(j);
+      State.current.invoice = bundle.invoice;
+      renderInvoiceForm(bundle);
+
+      // اختر الاقتراح إذا موجود
+      $('#btnUseGuess').onclick = ()=>{
+        const sel = $('#customerSelect');
+        if(j.customerGuess?.name){ sel.value = 'guess'; $('#buyerName').value = j.customerGuess.name; $('#buyerVAT').value = j.customerGuess.vat||''; $('#buyerCode').value = j.customerGuess.code||''; }
+      };
+
+      toast('تم تحميل القيد. راجع الحقول قبل التوليد.');
+    }
+
+    // QR Placeholder — يرسم مربعات عشوائية بسيطة + يولد TLV نصي مبسّط
+    function drawQRPlaceholder(text=''){
+      const c = $('#qrCanvas'); const ctx = c.getContext('2d');
+      const w = c.width = 120; const h = c.height = 120;
+      ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h);
+      ctx.strokeStyle = '#cbd5e1'; ctx.setLineDash([4,4]); ctx.strokeRect(2,2,w-4,h-4);
+      ctx.setLineDash([]);
+      // شبكة نقطية مبسطة
+      ctx.fillStyle = '#111827';
+      let seed = [...(text||'SMART-LIFE')].reduce((s,ch)=> s + ch.charCodeAt(0), 0);
+      function rnd(){ seed = (seed*1664525 + 1013904223) % 4294967296; return seed/4294967296; }
+      for(let y=8; y<h-8; y+=8){
+        for(let x=8; x<w-8; x+=8){ if(rnd()>.72) ctx.fillRect(x,y,3,3); }
+      }
+    }
+
+    function buildTLV(){
+      // TLV نصّي (Placeholder)— ليس معيار ZATCA الفعلي
+      const parts = {
+        seller: $('#sellerName').value.trim(),
+        sellerVAT: $('#sellerVAT').value.trim(),
+        issue: $('#issueDate').value,
+        total: $('#tGrand').textContent,
+        vat: $('#tVAT').textContent
+      };
+      return `TLV|seller:${parts.seller}|vat:${parts.sellerVAT}|dt:${parts.issue}|total:${parts.total}|vatAmt:${parts.vat}`;
+    }
+
+    // المعاينة
+    function buildPreviewHTML(){
+      const inv = collectInvoiceObject();
+      return `
+        <div class="invoice-preview">
+          <div class="invoice">
+            <header>
+              <div style="display:flex; gap:10px; align-items:center">
+                <div class="logo">SL</div>
+                <div>
+                  <h1>فاتورة ضريبية (AR Invoice)</h1>
+                  <div class="muted">رقم: ${inv.invoice.id} — التاريخ: ${new Date(inv.invoice.issueDate).toLocaleString('ar-SA')}</div>
+                </div>
+              </div>
+              <div class="totals">
+                <div><strong>الإجمالي شامل الضريبة:</strong> ${fmt(inv.invoice.totals.grand)}</div>
+                <div class="muted">العملة: ${inv.invoice.currency}</div>
+              </div>
+            </header>
+
+            <div class="grid2" style="margin-top:14px">
+              <div class="box"><strong>البائع</strong><br>
+                ${inv.seller.name}<br>
+                VAT: ${inv.seller.vat}<br>
+                ${inv.seller.address||''}
+              </div>
+              <div class="box"><strong>العميل</strong><br>
+                ${inv.buyer.name}<br>
+                ${inv.buyer.vat?`VAT: ${inv.buyer.vat}<br>`:''}
+                ${inv.buyer.address||''}
+              </div>
+            </div>
+
+            <div class="box" style="margin-top:14px">
+              <table class="inv">
+                <thead><tr><th>الوصف</th><th>الكمية</th><th>سعر الوحدة</th><th>نسبة الضريبة</th><th>قيمة الضريبة</th><th>الإجمالي</th></tr></thead>
+                <tbody>
+                  ${inv.invoice.lines.map(l=>`<tr>
+                    <td>${l.description}</td>
+                    <td>${fmt(l.qty)}</td>
+                    <td>${fmt(l.unitPrice)}</td>
+                    <td>${fmt(l.vatRate)}%</td>
+                    <td>${fmt(l.vatAmount)}</td>
+                    <td>${fmt(l.lineTotal)}</td>
+                  </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="grid2" style="margin-top:14px">
+              <div class="box">
+                <div><strong>المجموع قبل الضريبة:</strong> ${fmt(inv.invoice.totals.net)}</div>
+                <div><strong>الضريبة:</strong> ${fmt(inv.invoice.totals.vat)}</div>
+                <div><strong>الإجمالي شامل الضريبة:</strong> ${fmt(inv.invoice.totals.grand)}</div>
+              </div>
+              <div class="box">
+                <div class="qr-row">
+                  <div class="qr"></div>
+                  <div class="muted" style="font-size:12px; word-break:break-all">${inv.qr}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="muted" style="margin-top:8px">المصدر: ${inv.invoice.sourceJournalId}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function collectInvoiceObject(){
+      const lines = $$('#linesBody tr').map(tr=>{
+        const desc = tr.querySelector('.desc').value.trim();
+        const qty = parseNum(tr.querySelector('.qty').value);
+        const unitPrice = parseNum(tr.querySelector('.price').value);
+        const rate = parseNum(tr.querySelector('.rate').value);
+        const net = qty*unitPrice; const vat = net*rate/100; const total = net+vat;
+        return { description: desc, qty, unitPrice, vatRate: rate, vatAmount: vat, lineTotal: total };
+      });
+      const totals = recalcTotals();
+      const obj = {
+        seller:{ name: $('#sellerName').value.trim(), vat: $('#sellerVAT').value.trim(), address: $('#sellerAddr').value.trim() },
+        buyer:{ name: $('#buyerName').value.trim(), vat: $('#buyerVAT').value.trim(), address: $('#buyerAddr').value.trim(), code: $('#buyerCode').value.trim() },
+        invoice:{
+          id: $('#invId').value,
+          issueDate: $('#issueDate').value,
+          currency: $('#invCurr').value.trim()||'SAR',
+          lines,
+          totals: { net: totals.net, vat: totals.vat, grand: totals.grand },
+          sourceJournalId: $('#jId').value || (State.current.journal?.id || '')
+        },
+        qr: $('#qrText').value.trim() || buildTLV()
+      };
+      return obj;
+    }
+
+    // حفظ/تحميل مسودة بسيطة في localStorage
+    function saveDraft(){
+      const obj = collectInvoiceObject();
+      localStorage.setItem('DRAFT-INVOICE', JSON.stringify(obj));
+      toast('تم حفظ المسودة محليًا');
+    }
+    function loadDraft(){
+      const raw = localStorage.getItem('DRAFT-INVOICE');
+      if(!raw) return;
+      try{
+        const inv = JSON.parse(raw);
+        // تعبئة الحقول
+        $('#sellerName').value = inv.seller.name||'';
+        $('#sellerVAT').value = inv.seller.vat||'';
+        $('#sellerAddr').value = inv.seller.address||'';
+        $('#buyerName').value = inv.buyer.name||'';
+        $('#buyerVAT').value = inv.buyer.vat||'';
+        $('#buyerAddr').value = inv.buyer.address||'';
+        $('#buyerCode').value = inv.buyer.code||'';
+        $('#invId').value = inv.invoice.id||State.nextSerial();
+        $('#issueDate').value = inv.invoice.issueDate || new Date().toISOString().slice(0,16);
+        $('#invCurr').value = inv.invoice.currency||'SAR';
+        const tb = $('#linesBody'); tb.innerHTML='';
+        inv.invoice.lines.forEach(addLineRow);
+        $('#qrText').value = inv.qr||'';
+        recalcTotals();
+        toast('تم تحميل مسودة سابقة');
+      }catch{}
+    }
+
+    // تصدير JSON
+    function exportJSON(){
+      const obj = collectInvoiceObject();
+      const blob = new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${obj.invoice.id}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    // طباعة — نستخدم النافذة الحالية، مع عرض المعاينة في المودال أيضًا
+    function exportPDF(){ window.print(); }
+
+    // واجهة قائمة التحقق ZATCA
+    function showChecklist(){
+      const list = zatcaChecklist();
+      $('#modalTitle').textContent = 'قائمة التحقق — جاهزية ZATCA';
+      const ul = document.createElement('div'); ul.className='checklist';
+      list.forEach(it=>{
+        const row = document.createElement('div');
+        row.innerHTML = `${it.ok? '✅':'❌'} ${it.label}`;
+        ul.appendChild(row);
+      });
+      $('#modalBody').innerHTML=''; $('#modalBody').appendChild(ul);
+      $('#modal').classList.add('show');
+    }
+
+    function showPreview(){
+      $('#modalTitle').textContent = 'معاينة الفاتورة';
+      $('#modalBody').innerHTML = buildPreviewHTML();
+      $('#modal').classList.add('show');
+    }
+
+    // أحداث واجهة المستخدم
+    function bindEvents(){
+      // بحث
+      $('#btnSearch').addEventListener('click', ()=>{
+        const q = $('#searchInput').value.trim();
+        const res = State.journals.filter(j=> [j.id, j.description, new Date(j.date).toLocaleString('ar-SA')].some(x=> String(x).includes(q)) );
+        renderResults(res);
+      });
+      $('#btnReset').addEventListener('click', ()=>{ $('#searchInput').value=''; renderResults(State.journals); });
+
+      // خطوط
+      $('#btnAddLine').addEventListener('click', ()=> addLineRow());
+
+      // أزرار الإجراءات
+      $('#btnZATCA').addEventListener('click', showChecklist);
+      $('#btnSaveDraft').addEventListener('click', saveDraft);
+
+      $('#btnGenerate').addEventListener('click', ()=>{
+        if(!validate()){ toast('تحقق من الحقول الإلزامية'); return; }
+        State.current.generated = true; setStatus('تم التوليد');
+        toast('تم توليد الفاتورة بنجاح');
+        $('#btnPreview').disabled = false;
+        $('#btnExportJSON').disabled = false;
+        $('#btnExportPDF').disabled = false;
+      });
+
+      $('#btnPreview').addEventListener('click', showPreview);
+      $('#btnExportPDF').addEventListener('click', exportPDF);
+      $('#btnExportJSON').addEventListener('click', exportJSON);
+
+      // QR
+      $('#btnGenQR').addEventListener('click', ()=>{ const t = buildTLV(); $('#qrText').value = t; drawQRPlaceholder(t); });
+      $('#btnCopyQR').addEventListener('click', async ()=>{
+        try{ await navigator.clipboard.writeText($('#qrText').value); toast('تم النسخ'); }catch{ toast('تعذّر النسخ'); }
+      });
+
+      // مودال
+      $('#btnCloseModal').addEventListener('click', ()=> $('#modal').classList.remove('show'));
+
+      // عند تغيير أي قيمة — أعِد حساب الإجماليات
+      $('#converter').addEventListener('input', (e)=>{
+        if(e.target.classList.contains('input')) recalcTotals();
+      });
+    }
+
+    // تهيئة أولية
+    function init(){
+      renderResults(State.journals);
+      drawQRPlaceholder();
+      loadDraft();
+      bindEvents();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

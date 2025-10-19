@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>واجهة إضافة قيد يومية — SmartERP (Prototype)</title>
+  <style>
+    :root{
+  --bg:#f8fafc;
+  --panel:#ffffff;
+  --card:#ffffff;
+  --muted:#64748b;
+  --text:#0f172a;
+  --accent:#7cc3ff; /* light blue */ /* blue */
+  --accent-2:#38bdf8;
+  --gold:#d4af37; /* gold highlight */
+  --danger:#ef4444;
+  --warning:#f59e0b;
+  --border:#e2e8f0;
+  --row-even:#f1f5f9;
+  --row-odd:#f8fafc;
+  --row-focus:#dbeafe;
+  --chip:#e0f2fe;
+  --chip-border:#bae6fd;
+  --shadow:0 4px 12px rgba(0,0,0,.08);
+  --radius:18px;
+}
+
+    *{box-sizing:border-box}
+    html,body{height:100% padding:20px; }
+    body{
+      margin:0;
+      background:#ffffff;
+      color:var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans Arabic, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+
+    .container{
+      max-width:1200px; margin:40px auto; padding:0 16px;
+    }
+
+    .header{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px; margin-bottom:20px;
+    }
+    .brand{display:flex; align-items:center; gap:12px}
+    .logo{width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg,#22c55e,#16a34a); box-shadow:var(--shadow)}
+    .title h1{margin:0; font-size:22px; font-weight:800}
+    .title p{margin:4px 0 0; color:var(--muted); font-size:13px}
+
+    .panel{
+      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.00));
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .panel-head{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 18px; background:rgba(255,255,255,.02); border-bottom:1px solid var(--border);
+    }
+    .panel-head h2{margin:0; font-size:16px}
+    .panel-body{padding:18px}
+
+    /* form grid */
+    .grid{display:grid; grid-template-columns: repeat(12, 1fr); gap:12px}
+    .field{display:flex; flex-direction:column; gap:6px}
+    .field label{font-size:12px; color:var(--muted)}
+    .field input, .field select, .field textarea{
+      background:var(--card); color:var(--text);
+      border:1px solid var(--border); border-radius:12px; padding:10px 12px; outline:none;
+    }
+    .field input[readonly]{opacity:.8}
+    .hint{font-size:11px; color:#9ca3af}
+
+    /* chips */
+    .chips{display:flex; gap:10px; flex-wrap:wrap}
+    .chip{border:1px solid var(--chip-border); background:var(--chip); padding:6px 10px; border-radius:999px; font-size:12px; color:var(--muted)}
+
+    /* table */
+    .table-wrap{overflow:auto; border:1px solid var(--border); border-radius:14px}
+    table{width:100%; border-collapse:separate; border-spacing:0}
+    thead th{position:sticky; top:0; background:#0b1226; font-weight:700; font-size:12px; text-align:right; color:#9fb3d1; padding:12px 10px; border-bottom:1px solid var(--border)}
+    tbody td{padding:8px 10px; border-bottom:1px dashed #172036; vertical-align:middle}
+    tbody tr:nth-child(odd){background:var(--row-odd)}
+    tbody tr:nth-child(even){background:var(--row-even)}
+    tbody tr.active{outline:2px solid #1d4ed8; background:#0b254e !important}
+    .num{width:90px}
+    .money{width:140px}
+    .actions{width:70px; text-align:center}
+    .btn-icon{background:#0f172a; border:1px solid var(--border); color:#cbd5e1; border-radius:10px; padding:8px; cursor:pointer}
+    .btn-icon:hover{border-color:#334155}
+
+    .toolbar{display:flex; justify-content:space-between; align-items:center; margin:14px 2px}
+    .btn{display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:12px; border:1px solid var(--border); background:#0f172a; color:var(--text); cursor:pointer}
+    .btn.primary{background:linear-gradient(135deg,#22c55e,#16a34a); border:none}
+    .btn.danger{background:linear-gradient(135deg,#ef4444,#b91c1c); border:none}
+    .btn.secondary{background:linear-gradient(135deg,#3b82f6,#1d4ed8); border:none}
+
+    /* totals bar */
+    .totals{
+      display:grid; grid-template-columns: repeat(6, 1fr); gap:12px; align-items:center; margin-top:16px
+    }
+    .total-box{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:12px}
+    .total-box h4{margin:0 0 6px; font-size:12px; color:var(--muted)}
+    .total-box .val{font-size:18px; font-weight:800}
+
+    .alert{display:flex; align-items:center; gap:8px; padding:12px 14px; border-radius:12px; border:1px solid #3f2a11; background:#1f1203; color:#fcd34d}
+    .hidden{display:none !important}
+
+    /* attachments */
+    .attachments{display:flex; gap:12px; align-items:center}
+    .attachments input[type=file]{display:none}
+    .upload{border:1px dashed var(--border); padding:10px 12px; border-radius:12px; cursor:pointer; color:#cbd5e1}
+
+    /* footer buttons */
+    .footer{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:18px}
+
+    /* small screen */
+    @media (max-width: 840px){
+      .grid{grid-template-columns: repeat(6, 1fr)}
+      .totals{grid-template-columns: repeat(2, 1fr)}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="brand">
+        <div class="logo" aria-hidden></div>
+        <div class="title">
+          <h1>SmartERP — إضافة قيد يومية</h1>
+          <p>واجهة تصويرية (Prototype) توضح توصيات تحسين تجربة المستخدم</p>
+        </div>
+      </div>
+      <div class="chips">
+        <span class="chip">إصدار: تجريبي</span>
+        <span class="chip">واجهة كاملة — بدون نوافذ منبثقة</span>
+      </div>
+    </div>
+
+    <!-- تفاصيل القيد -->
+    <section class="panel">
+      <div class="panel-head">
+        <h2>تفاصيل القيد</h2>
+        <label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px">
+          <input type="checkbox" id="toggleCostCenter"> تفعيل حقول مراكز التكلفة
+        </label>
+      </div>
+      <div class="panel-body">
+        <div class="grid">
+          <div class="field" style="grid-column: span 2;">
+            <label>رقم القيد</label>
+            <input value="JV-2025-00097" readonly>
+            <div class="hint">يُنشأ تلقائيًا — مرجعي فقط</div>
+          </div>
+          <div class="field" style="grid-column: span 2;">
+            <label>التاريخ</label>
+            <input type="date" id="jvDate" value="2025-06-22">
+          </div>
+          <div class="field" style="grid-column: span 2;">
+            <label>الفرع</label>
+            <select id="branch">
+              <option>الفرع الرئيسي</option>
+              <option>فرع جدة</option>
+              <option>فرع الدمام</option>
+            </select>
+          </div>
+          <div class="field" style="grid-column: span 3;">
+            <label>المرجع</label>
+            <input placeholder="رقم مرجع خارجي إن وجد">
+          </div>
+          <div class="field" style="grid-column: span 3;">
+            <label>الوصف العام</label>
+            <input placeholder="وصف مختصر لسبب القيد">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- جدول القيود -->
+    <section class="panel" style="margin-top:18px">
+      <div class="panel-head">
+        <h2>تفاصيل البنود</h2>
+        <div class="chips">
+          <span class="chip">تلميح: أدخل في أحد الحقلين (مدين/دائن)</span>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="table-wrap">
+          <table id="lines">
+            <thead>
+              <tr>
+                <th>رقم الحساب / الاسم</th>
+                <th>بيان الحركة</th>
+                <th class="num">العملة</th>
+                <th class="num">سعر الصرف</th>
+                <th class="num">المكافئ</th>
+                <th class="money">مدين</th>
+                <th class="money">دائن</th>
+                <th class="num cost-center-col hidden">مركز التكلفة</th>
+                <th class="actions">إجراءات</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="toolbar">
+          <button class="btn secondary" id="addRow">+ إضافة سطر</button>
+          <div style="display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px">
+            <span>اختصار: Enter لإضافة سطر، Delete لحذف</span>
+          </div>
+        </div>
+
+        <div id="imbalanceAlert" class="alert hidden">
+          <span>⚠️</span>
+          <span>المبلغ المدخل في الطرفين غير متساوٍ، لا يمكن حفظ القيد.</span>
+        </div>
+
+        <div class="totals">
+          <div class="total-box">
+            <h4>إجمالي المدين</h4>
+            <div class="val" id="totalDebit">0.00</div>
+          </div>
+          <div class="total-box">
+            <h4>إجمالي الدائن</h4>
+            <div class="val" id="totalCredit">0.00</div>
+          </div>
+          <div class="total-box">
+            <h4>الفرق</h4>
+            <div class="val" id="totalDiff">0.00</div>
+          </div>
+          <div class="total-box">
+            <h4>عدد الأسطر</h4>
+            <div class="val" id="rowCount">0</div>
+          </div>
+          <div class="total-box">
+            <h4>عملة القيد</h4>
+            <div class="val">SAR</div>
+          </div>
+          <div class="total-box">
+            <h4>حالة التوازن</h4>
+            <div class="val" id="balanceState">غير متوازن</div>
+          </div>
+        </div>
+
+        <!-- الملاحظات والمرفقات -->
+        <div class="grid" style="margin-top:18px">
+          <div class="field" style="grid-column: span 6;">
+            <label>ملاحظات القيد</label>
+            <textarea id="notes" rows="3" placeholder="اكتب أي ملاحظات إضافية" ></textarea>
+          </div>
+          <div class="field" style="grid-column: span 6;">
+            <label>المرفقات</label>
+            <div class="attachments">
+              <label class="upload" for="fileInput">تصفح الملف</label>
+              <input id="fileInput" type="file" multiple />
+              <div id="filesList" class="hint">لا توجد ملفات مرفوعة بعد</div>
+            </div>
+            <div class="hint" style="margin-top:6px">في حال استيراد CSV سيتم عرض إرشادات التنسيق المقبول قبل المعالجة</div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <button class="btn danger" id="cancelBtn">إلغاء</button>
+          <div style="display:flex; gap:10px">
+            <button class="btn" id="saveDraft">حفظ مسودة</button>
+            <button class="btn primary" id="saveBtn">حفظ القيد</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <template id="rowTemplate">
+    <tr>
+      <td>
+        <select class="acct" title="ابحث في الحسابات — مصنفة حسب المجموعة" style="width:100%">
+          <optgroup label="الأصول">
+            <option value="1011001">1011001 — الصندوق الرئيسي</option>
+            <option value="1022002">1022002 — بنك الأهلي جاري</option>
+          </optgroup>
+          <optgroup label="الخصوم">
+            <option value="2013001">2013001 — موردون داخليون</option>
+          </optgroup>
+          <optgroup label="الإيرادات">
+            <option value="4010001">4010001 — مبيعات محلية</option>
+          </optgroup>
+          <optgroup label="المصروفات">
+            <option value="5020001">5020001 — رواتب الموظفين</option>
+            <option value="5021002">5021002 — مصاريف تشغيلية</option>
+          </optgroup>
+        </select>
+      </td>
+      <td>
+        <input class="desc" placeholder="سبب القيد أو وصف الإجراء" />
+      </td>
+      <td>
+        <select class="curr">
+          <option value="SAR" selected>SAR</option>
+          <option value="USD">USD</option>
+          <option value="EUR">EUR</option>
+        </select>
+      </td>
+      <td>
+        <input class="rate" type="number" step="0.0001" min="0" value="1" />
+      </td>
+      <td>
+        <input class="equiv" type="number" step="0.01" min="0" value="0" />
+      </td>
+      <td>
+        <input class="debit" type="number" step="0.01" min="0" value="0" title="أدخل قيمة المدين أو اتركه صفرًا" />
+      </td>
+      <td>
+        <input class="credit" type="number" step="0.01" min="0" value="0" title="أدخل قيمة الدائن أو اتركه صفرًا" />
+      </td>
+      <td class="cost-center-col hidden">
+        <select class="cc">
+          <option value="">—</option>
+          <option>مركز: المبيعات</option>
+          <option>مركز: التشغيل</option>
+          <option>مركز: الصيانة</option>
+        </select>
+      </td>
+      <td class="actions">
+        <button class="btn-icon del" title="حذف السطر">🗑️</button>
+      </td>
+    </tr>
+  </template>
+
+  <script>
+    const tbody = document.querySelector('#lines tbody');
+    const rowTpl = document.getElementById('rowTemplate');
+    const totalDebitEl = document.getElementById('totalDebit');
+    const totalCreditEl = document.getElementById('totalCredit');
+    const totalDiffEl = document.getElementById('totalDiff');
+    const rowCountEl = document.getElementById('rowCount');
+    const balanceStateEl = document.getElementById('balanceState');
+    const imbalanceAlert = document.getElementById('imbalanceAlert');
+    const toggleCostCenter = document.getElementById('toggleCostCenter');
+
+    function addRow(focus=true){
+      const tr = rowTpl.content.firstElementChild.cloneNode(true);
+
+      // events
+      tr.addEventListener('click', ()=> setActiveRow(tr));
+      tr.querySelectorAll('input,select').forEach(el=>{
+        el.addEventListener('focus', ()=> setActiveRow(tr));
+        el.addEventListener('input', onChange);
+        el.addEventListener('change', onChange);
+      });
+
+      // currency conditional fields
+      const curr = tr.querySelector('.curr');
+      const rate = tr.querySelector('.rate');
+      const equiv = tr.querySelector('.equiv');
+      function updateCurrencyFields(){
+        const isSAR = curr.value === 'SAR';
+        rate.parentElement.style.opacity = isSAR? .35 : 1;
+        rate.disabled = isSAR;
+        equiv.parentElement.style.opacity = isSAR? .35 : 1;
+        equiv.disabled = isSAR;
+        if(isSAR){ rate.value = 1; equiv.value = 0; }
+      }
+      curr.addEventListener('change', updateCurrencyFields);
+      updateCurrencyFields();
+
+      // one-side input rule (debit/credit)
+      const debit = tr.querySelector('.debit');
+      const credit = tr.querySelector('.credit');
+      debit.addEventListener('input', ()=>{ if(parseFloat(debit.value||0) > 0){ credit.value = 0; } recalc(); });
+      credit.addEventListener('input', ()=>{ if(parseFloat(credit.value||0) > 0){ debit.value = 0; } recalc(); });
+
+      // delete
+      tr.querySelector('.del').addEventListener('click', ()=>{ tr.remove(); recalc(); });
+
+      // cost center visibility sync
+      syncCostCenterColumn();
+
+      tbody.appendChild(tr);
+      if(focus){ tr.querySelector('.acct').focus(); }
+      recalc();
+    }
+
+    function setActiveRow(tr){
+      tbody.querySelectorAll('tr').forEach(r=> r.classList.remove('active'));
+      tr.classList.add('active');
+    }
+
+    function num(v){ return parseFloat(v||0) || 0; }
+
+    function recalc(){
+      let td = 0, tc = 0; let rows = 0;
+      tbody.querySelectorAll('tr').forEach(tr=>{
+        td += num(tr.querySelector('.debit').value);
+        tc += num(tr.querySelector('.credit').value);
+        rows++;
+      });
+      totalDebitEl.textContent = td.toFixed(2);
+      totalCreditEl.textContent = tc.toFixed(2);
+      const diff = td - tc;
+      totalDiffEl.textContent = diff.toFixed(2);
+      rowCountEl.textContent = rows;
+      const balanced = Math.abs(diff) < 0.005;
+      balanceStateEl.textContent = balanced ? 'متوازن' : 'غير متوازن';
+      imbalanceAlert.classList.toggle('hidden', balanced);
+    }
+
+    function onChange(){
+      recalc();
+    }
+
+    // add initial rows
+    addRow(false); addRow(false);
+
+    document.getElementById('addRow').addEventListener('click', ()=> addRow());
+
+    // keyboard helpers
+    document.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' && e.target.tagName !== 'TEXTAREA'){
+        e.preventDefault(); addRow();
+      }
+      if(e.key === 'Delete' && document.activeElement){
+        const tr = document.activeElement.closest('tr');
+        if(tr && tr.parentElement === tbody){ tr.remove(); recalc(); }
+      }
+    });
+
+    // cost center toggle
+    toggleCostCenter.addEventListener('change', syncCostCenterColumn);
+    function syncCostCenterColumn(){
+      const show = toggleCostCenter.checked;
+      document.querySelectorAll('.cost-center-col').forEach(thtd=>{
+        thtd.classList.toggle('hidden', !show);
+      });
+    }
+
+    // attachments preview
+    const fileInput = document.getElementById('fileInput');
+    const filesList = document.getElementById('filesList');
+    fileInput.addEventListener('change', ()=>{
+      if(fileInput.files.length===0){ filesList.textContent = 'لا توجد ملفات مرفوعة بعد'; return; }
+      const names = Array.from(fileInput.files).map(f=> f.name).join(' • ');
+      filesList.textContent = names;
+    });
+
+    // cancel & save (demo only)
+    document.getElementById('cancelBtn').addEventListener('click', ()=>{
+      if(confirm('هل تريد إلغاء القيد دون حفظ؟')){
+        tbody.innerHTML=''; addRow(false); addRow(false); recalc(); fileInput.value=''; filesList.textContent='لا توجد ملفات مرفوعة بعد';
+      }
+    });
+    document.getElementById('saveBtn').addEventListener('click', ()=>{
+      const diff = parseFloat(totalDiffEl.textContent);
+      if(Math.abs(diff) >= 0.005){
+        alert('لا يمكن الحفظ — القيد غير متوازن.');
+        return;
+      }
+      alert('تم حفظ القيد (محاكاة).');
+    });
+    document.getElementById('saveDraft').addEventListener('click', ()=>{
+      alert('تم حفظ المسودة (محاكاة).');
+    });
+  </script>
+</body>
+</html>

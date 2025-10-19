@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart ERP — مصمّم قائمة المركز المالي</title>
+  <style>
+    :root{--blue:#1877f2;--gold:#d4a017;--bg:#fff;--ink:#0f172a;--muted:#64748b;--shadow:0 8px 24px rgba(15,23,42,.08)}
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--ink);font:14px system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Noto Sans",Tahoma,Arial}
+    header{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid #e5e7eb;box-shadow:0 2px 12px rgba(0,0,0,.03)}
+    .wrap{max-width:1280px;margin:auto;padding:12px 16px}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .brand{display:flex;align-items:center;gap:10px}
+    .logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--blue),#4ea5ff);box-shadow:var(--shadow)}
+    h1{font-size:18px;margin:0}
+    .actions{margin-inline-start:auto;display:flex;gap:8px;flex-wrap:wrap}
+    .btn{appearance:none;border:1px solid transparent;border-radius:12px;padding:9px 12px;background:var(--blue);color:#fff;cursor:pointer;box-shadow:var(--shadow)}
+    .btn.secondary{background:#fff;color:var(--blue);border-color:#dbeafe}
+    .btn.gold{background:var(--gold);color:#111}
+    .btn.ghost{background:#fff;color:var(--blue);border-color:#e5e7eb}
+    .btn.danger{background:#dc2626}
+    .btn:focus{outline:3px solid rgba(24,119,242,.25)}
+    .search{position:relative;min-width:260px}
+    .search input{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:10px}
+
+    nav.tabs{border-bottom:1px solid #e5e7eb}
+    .tablist{display:flex;gap:6px;flex-wrap:wrap}
+    .tab{border:0;background:#fff;padding:10px 12px;border-radius:12px 12px 0 0}
+    .tab[aria-selected="true"], .tab:hover{background:#f8fbff;color:var(--blue);border-bottom:2px solid var(--blue)}
+
+    main{padding:16px}
+    .grid{display:grid;gap:12px}
+    .cols-3{grid-template-columns:260px 1fr 320px}
+    .cols-2{grid-template-columns:1fr 1fr}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px;box-shadow:var(--shadow)}
+    .card h3{margin:4px 0 8px 0}
+
+    /* Trees */
+    .tree{max-height:62vh;overflow:auto}
+    .tree ul{list-style:none;padding:0;margin:0}
+    .tree li{padding:6px 8px;margin:4px 0;border:1px solid #e5e7eb;border-radius:10px;background:#fff;display:flex;justify-content:space-between;align-items:center;gap:8px}
+    .tree li[draggable="true"]{cursor:grab}
+    .node-actions{display:flex;gap:6px}
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid #e5e7eb;background:#fff}
+    .badge.blue{background:#eef3ff;color:var(--blue);border-color:#dce9ff}
+    .badge.gold{background:#fff7e6;color:#7a5b00;border-color:#ffe7b3}
+    .badge.red{background:#fee2e2;color:#991b1b;border-color:#fecaca}
+    .chip{display:inline-block;padding:4px 8px;border-radius:999px;background:#f1f5f9;margin:2px;font-size:12px;border:1px solid #e5e7eb}
+
+    table{width:100%;border-collapse:separate;border-spacing:0 6px}
+    th{font-weight:600;text-align:right;color:#475569;padding:8px}
+    td{background:#fff;border:1px solid #e5e7eb;padding:8px}
+
+    /* Modals */
+    dialog{border:0;border-radius:16px;box-shadow:var(--shadow);width:min(760px,96vw)}
+    dialog::backdrop{background:rgba(0,0,0,.35)}
+    .modal-head{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid #eee}
+    .modal-body{padding:12px;max-height:65vh;overflow:auto}
+    .modal-foot{padding:12px;border-top:1px solid #eee;display:flex;gap:8px}
+
+    /* Toast */
+    #toasts{position:fixed;inset-inline-end:16px;top:16px;display:flex;flex-direction:column;gap:8px;z-index:50}
+    .toast{background:#111;color:#fff;padding:10px 14px;border-radius:10px;box-shadow:var(--shadow)}
+
+    /* Inputs */
+    input[type="text"], input[type="number"], select, textarea{width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px}
+    label{font-size:12px;color:#475569}
+    .hint{font-size:12px;color:#64748b}
+
+    footer{border-top:1px solid #e5e7eb;padding:12px;color:#475569}
+
+    @media print{
+      header, nav.tabs, .actions, .btn, #toasts, .left-col, .right-col, .tab-designer .card:first-child{display:none!important}
+      .tab-preview .card{box-shadow:none;border:0}
+      .tab-preview{display:block}
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap row">
+    <div class="brand"><div class="logo" aria-hidden="true"></div><h1>Smart ERP — مصمّم قائمة المركز المالي</h1></div>
+    <div class="actions" role="toolbar" aria-label="شريط الإجراءات">
+      <button class="btn" id="btnNew">هيكل جديد</button>
+      <button class="btn ghost" id="btnImportExport">استيراد/تصدير</button>
+      <button class="btn secondary" id="btnSettings">إعدادات</button>
+      <button class="btn gold" id="btnPrint">طباعة</button>
+      <button class="btn" id="btnHelp">مساعدة</button>
+      <div class="search"><input id="globalSearch" placeholder="بحث عام (الحسابات/البنود)…"/></div>
+    </div>
+  </div>
+  <nav class="tabs wrap" role="tablist">
+    <div class="tablist">
+      <button class="tab" aria-selected="true" data-tab="designer">المُصمِّم</button>
+      <button class="tab" aria-selected="false" data-tab="preview">المعاينة</button>
+      <button class="tab" aria-selected="false" data-tab="mappings">الربط</button>
+      <button class="tab" aria-selected="false" data-tab="versions">القوالب/النسخ</button>
+      <button class="tab" aria-selected="false" data-tab="audit">السجل</button>
+    </div>
+  </nav>
+</header>
+
+<main class="wrap" id="app"></main>
+
+<footer class="wrap">
+  <div class="row">
+    <span>نسخة Demo — تحفظ البيانات محليًا (localStorage).</span>
+    <button class="btn danger" id="btnClear">مسح البيانات</button>
+  </div>
+</footer>
+
+<!-- Modals -->
+<dialog id="modal-node">
+  <form method="dialog">
+    <div class="modal-head"><strong>خصائص البند</strong><button class="btn ghost" value="close">إغلاق</button></div>
+    <div class="modal-body grid cols-2">
+      <div>
+        <label>الاسم</label><input id="nodeLabel"/>
+      </div>
+      <div>
+        <label>الكود</label><input id="nodeCode"/>
+      </div>
+      <div>
+        <label>النوع</label>
+        <select id="nodeType">
+          <option value="group">مجموعة</option>
+          <option value="account">سطر حساب</option>
+          <option value="formula">معادلة</option>
+        </select>
+      </div>
+      <div>
+        <label><input type="checkbox" id="nodeHidden"/> إخفاء في المعاينة</label>
+      </div>
+      <div class="cols-2" style="grid-column:1/-1">
+        <div class="grid">
+          <label>معادلة (للنوع معادلة)</label>
+          <input id="nodeExpr" placeholder="مثال: SUM(ACT_CA) - SUM(LIAB_CL)" />
+          <div class="hint">الدوال المدعومة: SUM(code), DIFF(a,b), RATIO(a,b)</div>
+        </div>
+      </div>
+      <div style="grid-column:1/-1">
+        <h3>الحسابات المربوطة</h3>
+        <div id="nodeAccounts" class="card"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="btnSaveNode" value="save">حفظ</button>
+      <button class="btn ghost" value="close">إلغاء</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="modal-settings">
+  <form method="dialog">
+    <div class="modal-head"><strong>إعدادات</strong><button class="btn ghost" value="close">إغلاق</button></div>
+    <div class="modal-body grid cols-2">
+      <div class="card">
+        <label><input type="checkbox" id="uniqueMapping"> منع تكرار ربط الحساب</label>
+        <label><input type="checkbox" id="hideZeroRows"> إخفاء الصفوف الصفرية في المعاينة</label>
+      </div>
+      <div class="card">
+        <label>الدفتر (Book) الافتراضي</label>
+        <select id="defaultBook"><option>IFRS</option><option>GAAP</option></select>
+        <label>اتجاه الصفحة</label>
+        <select id="rtlDir"><option value="rtl">RTL</option><option value="ltr">LTR</option></select>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn" id="btnSaveSettings" value="save">حفظ</button></div>
+  </form>
+</dialog>
+
+<dialog id="modal-import-export">
+  <form method="dialog">
+    <div class="modal-head"><strong>استيراد/تصدير</strong><button class="btn ghost" value="close">إغلاق</button></div>
+    <div class="modal-body grid cols-2">
+      <div class="card">
+        <h3>تصدير</h3>
+        <button class="btn ghost" id="btnExportJSON" type="button">هيكل (JSON)</button>
+        <button class="btn ghost" id="btnExportCSV" type="button">تقرير (CSV)</button>
+      </div>
+      <div class="card">
+        <h3>استيراد</h3>
+        <input type="file" id="fileImport" accept=".json" />
+        <div class="hint">اختر ملف JSON تم تصديره سابقًا لاستعادته.</div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn" value="close">تم</button></div>
+  </form>
+</dialog>
+
+<div id="toasts" aria-live="polite" aria-atomic="true"></div>
+
+<script>
+// ===================== الحالة والبيانات =====================
+const LS_KEY = 'smart-erp-fsv-state-v1';
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+const demoState = {
+  coa:[
+    { id:"1000", name:"أصول متداولة", type:"header" },
+    { id:"1100", name:"نقد وما في حكمه", parent:"1000", type:"detail" },
+    { id:"1110", name:"صندوق رئيسي", parent:"1100", type:"detail" },
+    { id:"1200", name:"ذمم مدينة", parent:"1000", type:"detail" },
+    { id:"2000", name:"خصوم متداولة", type:"header" },
+    { id:"2100", name:"ذمم دائنة", parent:"2000", type:"detail" },
+    { id:"3000", name:"حقوق الملكية", type:"header" }
+  ],
+  balances:[
+    { account:"1110", period:"2025-09", book:"IFRS", debit:0, credit:150000, balance:150000 },
+    { account:"1200", period:"2025-09", book:"IFRS", debit:90000, credit:0, balance:90000 },
+    { account:"2100", period:"2025-09", book:"IFRS", debit:0, credit:70000, balance:-70000 }
+  ],
+  fsvVersions:[{
+    id:"FSV-IFRS-1", name:"IFRS – افتراضي", book:"IFRS",
+    signPolicy:{ assets:"+", liabilities:"-", equity:"-" },
+    nodes:[
+      { code:"ASSETS", label:"الأصول", type:"group", children:["ACT_CA"], hidden:false },
+      { code:"ACT_CA", label:"الأصول المتداولة", type:"group", children:["CASH","AR"], hidden:false },
+      { code:"CASH", label:"نقد وما في حكمه", type:"group", mapAccounts:["1110"], hidden:false },
+      { code:"AR", label:"ذمم مدينة", type:"group", mapAccounts:["1200"], hidden:false },
+      { code:"LIAB", label:"الخصوم", type:"group", children:["LIAB_CL"], hidden:false },
+      { code:"LIAB_CL", label:"خصوم متداولة", type:"group", mapAccounts:["2100"], hidden:false },
+      { code:"EQUITY", label:"حقوق الملكية", type:"group", children:[], hidden:false },
+      { code:"NWC", label:"صافي رأس المال العامل", type:"formula", expr:"SUM(ACT_CA) - SUM(LIAB_CL)", hidden:false }
+    ]
+  }],
+  preview:{ base:"2025-09", compare:"", showVariance:true, showPercent:true, book:"IFRS" },
+  settings:{ uniqueMapping:true, hideZeroRows:true, rtl:true, defaultBook:"IFRS" },
+  audit:[{ ts: Date.now()-86400000, action:"CREATE_FSV", details:"FSV-IFRS-1" }]
+};
+
+let state = loadState();
+function loadState(){ try{const s=JSON.parse(localStorage.getItem(LS_KEY)); if(s) return s;}catch(e){} return structuredClone(demoState); }
+function saveState(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+function pushAudit(action,details){ state.audit.unshift({ts:Date.now(),action,details}); saveState(); toast(action+" — "+details); }
+function toast(msg){ const el=document.createElement('div'); el.className='toast'; el.textContent=msg; $('#toasts').appendChild(el); setTimeout(()=>el.remove(),2600); }
+function download(name, text, type='text/plain'){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
+
+// ===================== تبويبات =====================
+let activeTab='designer';
+const app=$('#app');
+function render(){
+  if(activeTab==='designer') renderDesigner();
+  else if(activeTab==='preview') renderPreview();
+  else if(activeTab==='mappings') renderMappings();
+  else if(activeTab==='versions') renderVersions();
+  else if(activeTab==='audit') renderAudit();
+}
+$$('.tab').forEach(t=>t.addEventListener('click',()=>{ $$('.tab').forEach(x=>x.setAttribute('aria-selected','false')); t.setAttribute('aria-selected','true'); activeTab=t.dataset.tab; render(); }));
+
+// ===================== المُصمِّم =====================
+let selectedVersionIndex = 0; let selectedNodeCode = null;
+function currentVersion(){ return state.fsvVersions[selectedVersionIndex]; }
+
+function renderDesigner(){
+  const v = currentVersion();
+  app.innerHTML = `
+  <section class="grid cols-3 tab-designer">
+    <div class="card left-col">
+      <div class="row" style="justify-content:space-between"><h3>دليل الحسابات</h3><input id="coaSearch" placeholder="بحث" style="width:140px"></div>
+      <div class="tree" id="coaTree" aria-label="COA"></div>
+    </div>
+    <div class="card mid-col">
+      <div class="row" style="justify-content:space-between"><h3>هيكل التقرير — ${v.name}</h3><div class="row"><button class="btn secondary" id="btnAddGroup">إضافة مجموعة</button><button class="btn secondary" id="btnAddFormula">إضافة معادلة</button></div></div>
+      <div class="tree" id="fsvTree" aria-label="FSV Tree"></div>
+    </div>
+    <div class="card right-col">
+      <div class="row" style="justify-content:space-between"><h3>خصائص البند</h3><span id="nodeMeta" class="hint"></span></div>
+      <div id="nodeProps" class="grid"></div>
+    </div>
+  </section>`;
+
+  renderCOATree($('#coaTree'));
+  renderFSVTree($('#fsvTree'));
+  renderNodeProps();
+
+  $('#coaSearch').addEventListener('input',()=>renderCOATree($('#coaTree'), $('#coaSearch').value.trim()));
+  $('#btnAddGroup').addEventListener('click',()=>addNode('group'));
+  $('#btnAddFormula').addEventListener('click',()=>addNode('formula'));
+}
+
+function renderCOATree(container, q=''){
+  const list = buildCOAFiltered(q);
+  container.innerHTML = '';
+  const ul=document.createElement('ul');
+  for(const acc of list){
+    const li=document.createElement('li');
+    li.draggable = true; li.dataset.account=acc.id; li.title='اسحب لإفلاته على بند في الهيكل';
+    li.innerHTML = `<span>${acc.id} — ${acc.name}</span><span class="badge">${acc.type==='header'?'مجموعة':'حساب'}</span>`;
+    li.addEventListener('dragstart',e=>{ e.dataTransfer.setData('text/account', acc.id); });
+    ul.appendChild(li);
+  }
+  container.appendChild(ul);
+}
+function buildCOAFiltered(q){
+  const arr=[]; for(const a of state.coa){ if(!q || a.id.includes(q) || (a.name||'').includes(q)) arr.push(a); }
+  return arr;
+}
+
+function renderFSVTree(container){
+  const v=currentVersion();
+  const byCode = Object.fromEntries(v.nodes.map(n=>[n.code,n]));
+  function renderNode(code,depth=0){
+    const n=byCode[code]; if(!n) return '';
+    const children = (n.children||[]).map(c=>renderNode(c,depth+1)).join('');
+    const badges = [ n.type==='group'?'<span class="badge blue">Group</span>': (n.type==='formula'?'<span class="badge gold">Formula</span>':'<span class="badge">Account</span>'), n.hidden?'<span class="badge">Hidden</span>':'' ].join(' ');
+    const maps = (n.mapAccounts||[]).map(a=>`<span class="chip">${a}</span>`).join('');
+    return `
+      <li data-code="${n.code}" tabindex="0" aria-label="${n.label}" class="droppable" ondragover="event.preventDefault()">
+        <div class="row" style="justify-content:space-between;gap:8px">
+          <div class="row" style="gap:6px">
+            <button class="btn ghost" data-act="select" data-code="${n.code}">✎</button>
+            <strong>${n.label}</strong>
+            <span class="hint">(${n.code})</span>
+            ${badges}
+          </div>
+          <div class="node-actions">
+            <button class="btn ghost" data-act="up" data-code="${n.code}">↑</button>
+            <button class="btn ghost" data-act="down" data-code="${n.code}">↓</button>
+            <button class="btn ghost" data-act="addChild" data-code="${n.code}">+ فرعي</button>
+            <button class="btn ghost" data-act="delete" data-code="${n.code}">حذف</button>
+          </div>
+        </div>
+        ${maps?`<div class="hint">الحسابات: ${maps}</div>`:''}
+        ${children?`<ul style="margin-${document.dir==='rtl'?'right':'left'}:${14}px">${children}</ul>`:''}
+      </li>`;
+  }
+  // الجذور: كل node لا يوجد من يشير إليه كابن
+  const childrenSet=new Set(v.nodes.flatMap(n=>n.children||[]));
+  const roots=v.nodes.filter(n=>!childrenSet.has(n.code));
+  container.innerHTML = `<ul>${roots.map(n=>renderNode(n.code)).join('')}</ul>`;
+
+  // أحداث اختيار/تحريك/حذف/إضافة
+  container.querySelectorAll('[data-act="select"]').forEach(b=>b.addEventListener('click',()=>{ selectedNodeCode=b.dataset.code; renderNodeProps(); }));
+  container.querySelectorAll('[data-act="addChild"]').forEach(b=>b.addEventListener('click',()=>{ addChildTo(b.dataset.code); }));
+  container.querySelectorAll('[data-act="delete"]').forEach(b=>b.addEventListener('click',()=>{ deleteNode(b.dataset.code); }));
+  container.querySelectorAll('[data-act="up"]').forEach(b=>b.addEventListener('click',()=>{ moveNode(b.dataset.code,-1); }));
+  container.querySelectorAll('[data-act="down"]').forEach(b=>b.addEventListener('click',()=>{ moveNode(b.dataset.code,1); }));
+
+  // إسقاط حسابات
+  container.querySelectorAll('li.droppable').forEach(li=>{
+    li.addEventListener('drop',e=>{
+      const accId = e.dataTransfer.getData('text/account'); if(!accId) return;
+      bindAccountToNode(accId, li.dataset.code);
+    });
+    li.addEventListener('click',()=>{ selectedNodeCode=li.dataset.code; renderNodeProps(); });
+  });
+}
+
+function addNode(type){
+  const code = prompt('كود البند؟ مثال ACT_INV/NWC'); if(!code) return;
+  const label = prompt('الاسم المعروض؟'); if(!label) return;
+  const v=currentVersion();
+  v.nodes.push({code,label,type,children:[],hidden:false});
+  saveState(); pushAudit('ADD_NODE', code);
+  renderDesigner();
+}
+function addChildTo(parentCode){
+  const v=currentVersion(); const parent=v.nodes.find(n=>n.code===parentCode); if(!parent) return;
+  const code=prompt('كود الفرعي؟'); if(!code) return; const label=prompt('الاسم؟'); if(!label) return;
+  v.nodes.push({code,label,type:'group',children:[],hidden:false});
+  parent.children = parent.children||[]; parent.children.push(code);
+  saveState(); pushAudit('ADD_CHILD', parentCode+'=>'+code); renderDesigner();
+}
+function deleteNode(code){
+  const v=currentVersion();
+  // إزالة من children
+  v.nodes.forEach(n=>{ n.children = (n.children||[]).filter(x=>x!==code); });
+  v.nodes = v.nodes.filter(n=>n.code!==code);
+  if(selectedNodeCode===code) selectedNodeCode=null;
+  saveState(); pushAudit('DELETE_NODE', code); renderDesigner();
+}
+function moveNode(code,dir){
+  const v=currentVersion();
+  // ابحث عن الوالد
+  let parent=null; for(const n of v.nodes){ if((n.children||[]).includes(code)){ parent=n; break; } }
+  const arr = parent? parent.children : v.nodes.filter(n=>!v.nodes.some(m=> (m.children||[]).includes(n.code) )).map(n=>n.code);
+  // إن لم يكن له والد، نعيد ترتيب الجذور بتعديل ترتيب nodes نفسه غير ضروري — سنعدل children فقط عند وجود والد
+  if(parent){ const i=parent.children.indexOf(code); const j=i+dir; if(j<0||j>=parent.children.length) return; [parent.children[i],parent.children[j]]=[parent.children[j],parent.children[i]]; }
+  saveState(); renderDesigner();
+}
+
+function renderNodeProps(){
+  const v=currentVersion();
+  const n=v.nodes.find(x=>x.code===selectedNodeCode);
+  $('#nodeMeta').textContent = n? `نوع: ${n.type}` : '—';
+  const box=$('#nodeProps'); if(!box) return;
+  if(!n){ box.innerHTML='<div class="hint">اختر بندًا من الهيكل لعرض خصائصه.</div>'; return; }
+  box.innerHTML = `
+    <div class="grid">
+      <label>الاسم</label><input id="pLabel" value="${n.label}"/>
+      <label>الكود</label><input id="pCode" value="${n.code}"/>
+      <label>النوع</label>
+      <select id="pType"><option value="group" ${n.type==='group'?'selected':''}>مجموعة</option><option value="account" ${n.type==='account'?'selected':''}>سطر حساب</option><option value="formula" ${n.type==='formula'?'selected':''}>معادلة</option></select>
+      <label><input type="checkbox" id="pHidden" ${n.hidden?'checked':''}/> إخفاء</label>
+      <label>معادلة</label><input id="pExpr" value="${n.expr||''}" placeholder="SUM(ACT_CA) - SUM(LIAB_CL)"/>
+      <div>
+        <h3>الحسابات المربوطة</h3>
+        <div>${(n.mapAccounts||[]).map(a=>`<span class='chip'>${a} <button class='btn ghost' data-unmap='${a}'>×</button></span>`).join('')||'<span class="hint">اسحب حسابًا من اليسار لإسناده هنا</span>'}</div>
+      </div>
+      <div class="row"><button class="btn" id="btnOpenNodeModal">فتح في نافذة</button><button class="btn secondary" id="btnSaveQuick">حفظ</button></div>
+    </div>`;
+  box.querySelectorAll('[data-unmap]').forEach(b=>b.addEventListener('click',()=>{ n.mapAccounts = (n.mapAccounts||[]).filter(x=>x!==b.dataset.unmap); saveState(); pushAudit('UNMAP', `${n.code} - ${b.dataset.unmap}`); renderDesigner(); }));
+  $('#btnSaveQuick').addEventListener('click',()=>{ n.label=$('#pLabel').value; n.code=$('#pCode').value.trim()||n.code; n.type=$('#pType').value; n.hidden=$('#pHidden').checked; n.expr=$('#pExpr').value.trim(); saveState(); pushAudit('UPDATE_NODE', n.code); renderDesigner(); });
+  $('#btnOpenNodeModal').addEventListener('click',()=>openNodeModal(n));
+}
+
+function openNodeModal(node){
+  $('#nodeLabel').value=node.label; $('#nodeCode').value=node.code; $('#nodeType').value=node.type; $('#nodeHidden').checked=!!node.hidden; $('#nodeExpr').value=node.expr||'';
+  const box=$('#nodeAccounts'); box.innerHTML=(node.mapAccounts||[]).map(a=>`<span class='chip'>${a}</span>`).join('')||'<div class="hint">لا حسابات</div>';
+  $('#btnSaveNode').onclick = e=>{
+    e.preventDefault();
+    node.label=$('#nodeLabel').value; node.code=$('#nodeCode').value.trim()||node.code; node.type=$('#nodeType').value; node.hidden=$('#nodeHidden').checked; node.expr=$('#nodeExpr').value.trim(); saveState(); pushAudit('UPDATE_NODE', node.code); $('#modal-node').close(); renderDesigner();
+  };
+  $('#modal-node').showModal();
+}
+
+function bindAccountToNode(accountId, nodeCode){
+  const v=currentVersion(); const n=v.nodes.find(x=>x.code===nodeCode); if(!n) return;
+  if(state.settings.uniqueMapping){ // تأكد من عدم تكرار الربط
+    for(const m of v.nodes){ m.mapAccounts = (m.mapAccounts||[]).filter(a=>a!==accountId); }
+  }
+  n.mapAccounts = n.mapAccounts||[]; if(!n.mapAccounts.includes(accountId)) n.mapAccounts.push(accountId);
+  saveState(); pushAudit('MAP', accountId+' → '+nodeCode); renderDesigner();
+}
+
+// ===================== المعاينة =====================
+function renderPreview(){
+  const v=currentVersion();
+  app.innerHTML = `
+  <section class="tab-preview grid cols-2">
+    <div class="card">
+      <h3>إعدادات المعاينة</h3>
+      <div class="grid cols-2">
+        <div><label>الدفتر</label><select id="prevBook"><option ${state.preview.book==='IFRS'?'selected':''}>IFRS</option><option ${state.preview.book==='GAAP'?'selected':''}>GAAP</option></select></div>
+        <div><label>الفترة الأساسية</label><input id="prevBase" value="${state.preview.base}" placeholder="YYYY-MM"/></div>
+        <div><label>فترة مقارنة</label><input id="prevCmp" value="${state.preview.compare||''}" placeholder="YYYY-MM"/></div>
+        <div><label><input type="checkbox" id="prevVar" ${state.preview.showVariance?'checked':''}/> إظهار الفرق/%</label></div>
+      </div>
+      <div class="row" style="margin-top:8px"><button class="btn" id="btnRefresh">تحديث</button></div>
+    </div>
+    <div class="card">
+      <h3>المعاينة</h3>
+      <table>
+        <thead><tr><th>البند</th><th>الأساسي</th><th>المقارنة</th><th>الفرق</th><th>%</th></tr></thead>
+        <tbody id="previewBody"></tbody>
+      </table>
+    </div>
+  </section>`;
+
+  $('#btnRefresh').addEventListener('click',()=>{ state.preview={ base:$('#prevBase').value.trim(), compare:$('#prevCmp').value.trim(), showVariance:$('#prevVar').checked, showPercent:$('#prevVar').checked, book:$('#prevBook').value }; saveState(); fillPreview(); });
+  fillPreview();
+}
+
+function fillPreview(){
+  const v=currentVersion(); const rows = computeAll(v);
+  const body=$('#previewBody'); body.innerHTML='';
+  for(const r of rows){
+    if(state.settings.hideZeroRows && (r.baseVal===0) && (!state.preview.compare || r.cmpVal===0)) continue;
+    const tr=document.createElement('tr');
+    const pct = (state.preview.compare && Math.abs(r.cmpVal)>1e-9) ? ((r.baseVal - r.cmpVal)/Math.abs(r.cmpVal))*100 : 0;
+    tr.innerHTML = `<td>${'&nbsp;'.repeat(r.depth*4)}${r.label}</td><td>${fmt(r.baseVal)}</td><td>${state.preview.compare?fmt(r.cmpVal):'-'}</td><td>${state.preview.showVariance?fmt(r.baseVal - (r.cmpVal||0)):'-'}</td><td>${state.preview.showPercent?pct.toFixed(2)+'%':'-'}</td>`;
+    body.appendChild(tr);
+  }
+}
+
+function computeAll(v){
+  const map = Object.fromEntries(v.nodes.map(n=>[n.code,n]));
+  const childrenSet = new Set(v.nodes.flatMap(n=>n.children||[]));
+  const roots = v.nodes.filter(n=>!childrenSet.has(n.code));
+  const result=[];
+  function valOf(code, period){
+    const n=map[code]; if(!n) return 0;
+    if(n.type==='formula') return evalFormula(n.expr||'', (c)=>valOf(c,period));
+    let val=0;
+    if(n.mapAccounts && n.mapAccounts.length){
+      for(const acc of n.mapAccounts){ val += balanceOf(acc, period, state.preview.book); }
+    }
+    for(const ch of (n.children||[])) val += valOf(ch,period);
+    return normalize(code, val);
+  }
+  function normalize(code, value){
+    // سياسة إشارة مبسطة وفق الجذر الأعلى
+    const sect = sectionOf(code, map);
+    const pol = v.signPolicy || {assets:'+', liabilities:'-', equity:'-'};
+    if(sect==='liabilities' || sect==='equity') return -value; // إظهار بالموجب بعد التطبيع
+    return value; // الأصول موجبة
+  }
+  function walk(code, depth){
+    const n=map[code]; if(!n) return;
+    const baseVal = valOf(code, state.preview.base);
+    const cmpVal = state.preview.compare? valOf(code, state.preview.compare) : 0;
+    if(!n.hidden) result.push({ code:n.code, label:n.label, depth, baseVal, cmpVal });
+    for(const ch of (n.children||[])) walk(ch, depth+1);
+  }
+  for(const r of roots) walk(r.code,0);
+  return result;
+}
+function sectionOf(code, map){
+  // اصعد حتى الجذر الأول لتحديد القسم
+  let cur=map[code]; let guard=0;
+  while(cur && guard++<100){
+    const parent = Object.values(map).find(n=>(n.children||[]).includes(cur.code));
+    if(!parent) break; cur=parent;
+  }
+  if(!cur) return 'assets';
+  if(cur.code.startsWith('LIAB')) return 'liabilities';
+  if(cur.code==='LIAB') return 'liabilities';
+  if(cur.code==='EQUITY') return 'equity';
+  return 'assets';
+}
+function balanceOf(account, period, book){
+  const r = state.balances.find(b=>b.account===account && b.period===period && b.book===book);
+  return r? (Number(r.balance)||0) : 0;
+}
+function evalFormula(expr, getVal){
+  // دعم SUM(code), DIFF(a,b), RATIO(a,b) وعمليات + - بسيطة
+  if(!expr) return 0;
+  function SUM(code){ return getVal(code)||0; }
+  function DIFF(a,b){ return (getVal(a)||0) - (getVal(b)||0); }
+  function RATIO(a,b){ const d=(getVal(b)||0); return d? (getVal(a)||0)/d : 0; }
+  // امن بسيط: استبدال الأكواد بالحروف والأرقام فقط
+  const safe = expr.replace(/[^A-Z0-9_()\s+\-.*,]/gi,'');
+  try{ return Function('SUM','DIFF','RATIO', `return (${safe});`)(SUM,DIFF,RATIO); }catch(e){ return 0; }
+}
+function fmt(n){ return Number(n||0).toLocaleString('ar-EG',{maximumFractionDigits:2}); }
+
+// ===================== الربط =====================
+function renderMappings(){
+  const v=currentVersion();
+  const rows=[];
+  const mapped = new Set();
+  for(const n of v.nodes){ for(const a of (n.mapAccounts||[])){ rows.push({account:a, node:n.code}); mapped.add(a);} }
+  const unmapped = state.coa.filter(c=>c.type!=='header' && !mapped.has(c.id)).map(c=>({account:c.id,node:''}));
+  const all = rows.concat(unmapped);
+  app.innerHTML = `
+  <section class="card">
+    <div class="row" style="justify-content:space-between"><h3>الربط (الحساب ← البند)</h3>
+      <div class="row"><button class="btn secondary" id="btnAutoMap">تعيين تلقائي (حسب البادئة)</button><button class="btn ghost" id="btnConflicts">كشف التعارضات</button></div>
+    </div>
+    <table><thead><tr><th style="width:160px">الحساب</th><th>البند</th><th style="width:120px">حالة</th></tr></thead>
+      <tbody>
+        ${all.map(r=>{
+          const dup = state.settings.uniqueMapping && rows.filter(x=>x.account===r.account).length>1;
+          const status = r.node? (dup?'<span class="badge red">مكرر</span>':'<span class="badge blue">✓</span>') : '<span class="badge red">غير معوّن</span>';
+          return `<tr><td>${r.account}</td><td>${r.node||'-'}</td><td>${status}</td></tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </section>`;
+  $('#btnAutoMap').addEventListener('click',autoMapByPrefix);
+  $('#btnConflicts').addEventListener('click',()=>{ toast('تم تمييز الحالات باللون الأحمر (مكرر/غير معوّن)'); });
+}
+function autoMapByPrefix(){
+  const v=currentVersion();
+  // مثال: أي حساب يبدأ بـ 11→CASH، 12→AR، 21→LIAB_CL
+  const rules=[{p:'11',to:'CASH'},{p:'12',to:'AR'},{p:'21',to:'LIAB_CL'}];
+  for(const c of state.coa){ if(c.type==='header') continue; const r=rules.find(x=>String(c.id).startsWith(x.p)); if(!r) continue; bindAccountToNode(c.id, r.to); }
+  renderMappings();
+}
+
+// ===================== القوالب/النسخ =====================
+function renderVersions(){
+  app.innerHTML = `
+  <section class="card">
+    <div class="row" style="justify-content:space-between"><h3>نسخ FSV</h3><button class="btn" id="btnNewFSV">نسخة جديدة</button></div>
+    <table><thead><tr><th>الاسم</th><th>الدفتر</th><th>إجراءات</th></tr></thead><tbody id="vBody"></tbody></table>
+  </section>`;
+  const body=$('#vBody'); body.innerHTML='';
+  state.fsvVersions.forEach((v,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${v.name}</td><td>${v.book}</td><td>
+      <button class="btn secondary" data-act="use" data-i="${i}">${i===selectedVersionIndex?'✓ مستخدمة':'استخدام'}</button>
+      <button class="btn ghost" data-act="clone" data-i="${i}">نسخ</button>
+      <button class="btn danger" data-act="del" data-i="${i}">حذف</button>
+    </td>`; body.appendChild(tr);
+  });
+  body.querySelectorAll('[data-act="use"]').forEach(b=>b.addEventListener('click',()=>{ selectedVersionIndex=Number(b.dataset.i); saveState(); toast('تم اختيار النسخة'); render(); }));
+  body.querySelectorAll('[data-act="clone"]').forEach(b=>b.addEventListener('click',()=>{ const i=Number(b.dataset.i); const copy=structuredClone(state.fsvVersions[i]); copy.id='FSV-'+Math.random().toString(36).slice(2,8).toUpperCase(); copy.name += ' (نسخة)'; state.fsvVersions.push(copy); saveState(); pushAudit('CLONE_FSV', copy.id); renderVersions(); }));
+  body.querySelectorAll('[data-act="del"]').forEach(b=>b.addEventListener('click',()=>{ const i=Number(b.dataset.i); if(state.fsvVersions.length===1){ toast('لا يمكن حذف النسخة الوحيدة'); return; } state.fsvVersions.splice(i,1); if(selectedVersionIndex>=state.fsvVersions.length) selectedVersionIndex=0; saveState(); pushAudit('DELETE_FSV', i); renderVersions(); }));
+  $('#btnNewFSV').addEventListener('click',()=>{ const name=prompt('اسم النسخة؟'); if(!name) return; const id='FSV-'+Math.random().toString(36).slice(2,8).toUpperCase(); state.fsvVersions.push({ id, name, book: state.settings.defaultBook || 'IFRS', signPolicy:{assets:'+',liabilities:'-',equity:'-'}, nodes:[] }); saveState(); pushAudit('CREATE_FSV', id); renderVersions(); });
+}
+
+// ===================== السجل =====================
+function renderAudit(){
+  app.innerHTML = `<section class="card"><table><thead><tr><th style="width:180px">التاريخ/الوقت</th><th>الإجراء</th><th>تفاصيل</th></tr></thead><tbody>${state.audit.map(a=>`<tr><td>${new Date(a.ts).toLocaleString('ar-EG')}</td><td>${a.action}</td><td>${a.details||''}</td></tr>`).join('')}</tbody></table></section>`;
+}
+
+// ===================== إعدادات ورأس الصفحة =====================
+$('#btnSettings').addEventListener('click',()=>{
+  $('#uniqueMapping').checked=!!state.settings.uniqueMapping; $('#hideZeroRows').checked=!!state.settings.hideZeroRows; $('#defaultBook').value=state.settings.defaultBook||'IFRS'; $('#rtlDir').value=state.settings.rtl?'rtl':'ltr';
+  $('#modal-settings').showModal();
+});
+$('#btnSaveSettings').addEventListener('click',e=>{ e.preventDefault(); state.settings.uniqueMapping=$('#uniqueMapping').checked; state.settings.hideZeroRows=$('#hideZeroRows').checked; state.settings.defaultBook=$('#defaultBook').value; state.settings.rtl=$('#rtlDir').value==='rtl'; document.documentElement.dir = state.settings.rtl?'rtl':'ltr'; saveState(); pushAudit('UPDATE_SETTINGS',''); $('#modal-settings').close(); render(); });
+$('#btnImportExport').addEventListener('click',()=>$('#modal-import-export').showModal());
+$('#btnExportJSON').addEventListener('click',()=>download('structure.json', JSON.stringify(state,null,2),'application/json'));
+$('#btnExportCSV').addEventListener('click',()=>{ const v=currentVersion(); const rows=computeAll(v); const cols=['code','label','baseVal','cmpVal']; const csv=[cols.join(',')].concat(rows.map(r=>cols.map(k=>JSON.stringify(r[k]??'')).join(','))).join('\n'); download('report.csv', csv,'text/csv'); });
+$('#fileImport').addEventListener('change',e=>{ const f=e.target.files?.[0]; if(!f) return; const reader=new FileReader(); reader.onload=()=>{ try{ const obj=JSON.parse(reader.result); state=obj; saveState(); pushAudit('IMPORT','JSON'); location.reload(); }catch(err){ toast('ملف غير صالح'); } }; reader.readAsText(f); });
+$('#btnPrint').addEventListener('click',()=>{ activeTab='preview'; $$('.tab').forEach(t=>t.dataset.tab==='preview'&&t.click()); setTimeout(()=>window.print(), 150); });
+$('#btnHelp').addEventListener('click',()=>toast('اسحب حسابًا من اليسار وأسقطه على أي بند في الوسط لربطه.'));
+$('#btnNew').addEventListener('click',()=>{ if(!confirm('إنشاء هيكل جديد؟ لن تُحذف البيانات الأخرى.')) return; const id='FSV-'+Math.random().toString(36).slice(2,8).toUpperCase(); state.fsvVersions.push({id,name:'نسخة جديدة',book:state.settings.defaultBook||'IFRS',signPolicy:{assets:'+',liabilities:'-',equity:'-'},nodes:[]}); selectedVersionIndex=state.fsvVersions.length-1; saveState(); pushAudit('CREATE_FSV', id); render(); });
+$('#btnClear').addEventListener('click',()=>{ localStorage.removeItem(LS_KEY); state=structuredClone(demoState); saveState(); toast('تمت تهيئة البيانات'); render(); });
+
+// بحث عام بسيط
+$('#globalSearch').addEventListener('input',()=>{ if(activeTab==='designer') renderDesigner(); else if(activeTab==='mappings') renderMappings(); });
+
+// تشغيل أولي
+render();
+</script>
+</body>
+</html>

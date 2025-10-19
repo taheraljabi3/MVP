@@ -1,0 +1,911 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>خطاب مطابقة الرصيد — صفحة واحدة</title>
+  <meta name="description" content="واجهة إدارة وإرسال خطابات مطابقة الرصيد (عميل/مورد) — صفحة واحدة HTML/CSS/JS فقط" />
+  <style>
+    /* ==========================
+       Reset & Base
+    ========================== */
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --primary: #1877F2; /* أزرق واضح مثل فيسبوك/تويتر قديم */
+      --primary-600: #145fcc;
+      --bg: #ffffff;
+      --ink: #0f172a; /* slate-900 */
+      --ink-2: #334155; /* slate-700 */
+      --muted: #f1f5f9; /* slate-100 */
+      --border: #e2e8f0; /* slate-200 */
+      --success: #16a34a;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --focus: #60a5fa;
+    }
+    [data-theme="dark"] {
+      --bg: #0b1220;
+      --ink: #e5e7eb;
+      --ink-2: #cbd5e1;
+      --muted: #0f172a;
+      --border: #1f2937;
+    }
+    html, body { height: 100%; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 400 15px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Kufi Arabic", "Tahoma", sans-serif; }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    button, input, select, label { font: inherit; }
+    .container { max-width: 1280px; margin-inline: auto; padding: 0 16px; }
+    .visually-hidden { position: absolute !important; height: 1px; width: 1px; overflow: hidden; clip: rect(1px, 1px, 1px, 1px); white-space: nowrap; }
+
+    /* ==========================
+       Header
+    ========================== */
+    header.site-header { position: sticky; top: 0; z-index: 50; background: var(--bg); border-bottom: 1px solid var(--border); }
+    .header-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; }
+    .brand { display:flex; align-items:center; gap:10px; }
+    .logo { inline-size: 36px; block-size: 36px; border-radius: 8px; background: var(--primary); display:grid; place-items:center; color:#fff; font-weight:700; }
+    nav ul { margin: 0; padding: 0; list-style: none; display: flex; gap: 12px; }
+    nav a { display: inline-flex; align-items: center; padding: 8px 10px; border-radius: 8px; }
+    nav a:is(:hover, :focus-visible) { background: var(--muted); outline: none; }
+
+    /* ==========================
+       Layout
+    ========================== */
+    main { display: grid; grid-template-columns: 320px 1fr; gap: 16px; padding: 16px 0 0; }
+    @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+
+    aside.filters { position: relative; background: var(--bg); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+    .filters h2 { margin: 0 0 10px; font-size: 16px; }
+    .field { display: grid; gap: 6px; margin: 10px 0; }
+    .row { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+    .btn { appearance: none; border: 1px solid var(--border); background: #fff; color: var(--ink); padding: 8px 12px; border-radius: 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+    .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .btn.ghost { background: transparent; }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .btn:is(:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+    section.results { position: relative; background: var(--bg); border: 1px solid var(--border); border-radius: 14px; padding: 0; overflow: hidden; }
+
+    .toolbar { display:flex; gap:8px; align-items:center; padding: 12px; border-bottom: 1px solid var(--border); background: linear-gradient(0deg, var(--bg), #fff); position: sticky; top: 56px; z-index: 5; }
+    .toolbar .grow { flex: 1; }
+    .input { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: #fff; padding: 8px 10px; border-radius: 10px; }
+    .input input { border: 0; outline: none; background: transparent; min-inline-size: 140px; }
+    .select { border: 1px solid var(--border); background:#fff; padding: 8px 10px; border-radius: 10px; }
+    .checkbox { display:inline-flex; gap:8px; align-items:center; }
+
+    /* Table */
+    .table-wrap { overflow:auto; }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    thead th { position: sticky; top: calc(56px + 48px); background: var(--muted); z-index: 4; text-align: start; font-weight: 600; padding: 10px; border-bottom: 1px solid var(--border); }
+    tbody td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tbody tr.selectable:hover { background: #f8fafc; }
+    tbody tr.selected { background: #eef6ff; outline: 2px solid #dbeafe; }
+
+    .status-pill { display:inline-flex; align-items:center; gap:6px; padding: 2px 8px; border-radius: 999px; font-size: 12px; border:1px solid var(--border); }
+    .status-sent { background:#ecfdf5; border-color:#bbf7d0; }
+    .status-pending { background:#fff7ed; border-color:#fed7aa; }
+    .status-rejected { background:#fef2f2; border-color:#fecaca; }
+    .status-confirmed { background:#eff6ff; border-color:#bfdbfe; }
+
+    .details { grid-column: 1 / -1; background: #fcfdff; border-inline-start: 4px solid var(--primary); display: none; }
+    .details.open { display: table-row; animation: fade .2s ease-in; }
+    @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+
+    .empty { padding: 32px; text-align: center; color: var(--ink-2); }
+
+    /* Footer */
+    footer { margin: 16px 0 24px; color: var(--ink-2); font-size: 13px; display:flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+    /* ==========================
+       Modals & Overlays
+    ========================== */
+    dialog.modal { border: 0; border-radius: 16px; padding: 0; width: min(100% - 24px, 960px); }
+    .modal header { padding: 12px 16px; border-bottom: 1px solid var(--border); display:flex; align-items:center; justify-content: space-between; }
+    .modal .content { padding: 16px; max-block-size: 70vh; overflow: auto; background: var(--bg); }
+    .modal footer { padding: 12px 16px; border-top: 1px solid var(--border); display:flex; gap: 8px; justify-content: end; }
+    dialog::backdrop { background: rgba(0,0,0,.35); }
+
+    .template-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* Toasts */
+    .toasts { position: fixed; inset-inline-start: 16px; inset-block-end: 16px; display: grid; gap: 10px; z-index: 100; }
+    .toast { background: #fff; color: var(--ink); border: 1px solid var(--border); border-inline-start: 4px solid var(--primary); padding: 10px 12px; border-radius: 12px; display:flex; align-items: start; gap: 10px; min-width: 260px; box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+    .toast.success { border-inline-start-color: var(--success); }
+    .toast.warn { border-inline-start-color: var(--warn); }
+    .toast.danger { border-inline-start-color: var(--danger); }
+    .toast button { margin-inline-start: auto; }
+
+    /* Spinner */
+    .spinner { position: fixed; inset: 0; display: none; place-items: center; background: rgba(255,255,255,.6); z-index: 90; }
+    .spinner .ring { inline-size: 56px; block-size: 56px; border: 6px solid #e5e7eb; border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(-360deg); } }
+
+    /* ==========================
+       Print Styles (letters only)
+    ========================== */
+    @media print {
+      body { background: #fff; }
+      header.site-header, aside.filters, .toolbar, .table-wrap, footer, .toasts, .spinner { display: none !important; }
+      .print-letters { display: block !important; }
+      .letter { page-break-after: always; break-after: page; }
+      .letter:last-child { page-break-after: auto; break-after: auto; }
+    }
+
+    /* Letter (Preview HTML) */
+    .letter { color: #111827; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 12px 0; }
+    .letter header { display:flex; align-items:center; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 12px; }
+    .letter .brand { gap: 10px; }
+    .letter h3 { margin: 0; font-size: 18px; }
+    .info-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; font-size: 14px; margin: 10px 0 6px; }
+    .reply-slip { margin-top: 12px; border-top: 2px dashed #cbd5e1; padding-top: 10px; }
+    .qr { inline-size: 72px; block-size: 72px; background: repeating-linear-gradient(45deg, #000 0 4px, #fff 4px 8px); border-radius: 6px; }
+
+  </style>
+</head>
+<body>
+  <header class="site-header" role="banner">
+    <div class="container header-inner">
+      <div class="brand" aria-label="المؤسسة">
+        <div class="logo" aria-hidden="true">SL</div>
+        <div>
+          <div style="font-weight:700">Smart Life — المطابقة</div>
+          <div style="font-size:12px;color:var(--ink-2)">إدارة وإرسال خطابات مطابقة الرصيد</div>
+        </div>
+      </div>
+      <nav aria-label="روابط رئيسية">
+        <ul>
+          <li><a href="#" aria-current="page">الرئيسية</a></li>
+          <li><a href="#">التقارير</a></li>
+          <li><a href="#" id="openTemplateBtn" title="إعدادات القالب">الإعدادات</a></li>
+          <li><button class="btn ghost" id="toggleTheme" aria-pressed="false" title="تبديل الوضع الداكن">🌙</button></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <main id="main" role="main">
+      <!-- Sidebar / Filters -->
+      <aside class="filters" aria-label="فلاتر وإعدادات">
+        <h2>الفلاتر</h2>
+        <div class="field row" aria-label="الفترة">
+          <div class="field">
+            <label for="fromDate">من</label>
+            <input id="fromDate" type="date" />
+          </div>
+          <div class="field">
+            <label for="toDate">إلى</label>
+            <input id="toDate" type="date" />
+          </div>
+        </div>
+
+        <div class="field" role="group" aria-label="نوع الطرف">
+          <label>نوع الطرف</label>
+          <div class="row">
+            <label class="checkbox"><input type="radio" name="ptype" value="all" checked /> الكل</label>
+            <label class="checkbox"><input type="radio" name="ptype" value="customer" /> عميل</label>
+            <label class="checkbox"><input type="radio" name="ptype" value="vendor" /> مورد</label>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="branchSelect">الفرع</label>
+            <select id="branchSelect" class="select"></select>
+          </div>
+          <div class="field">
+            <label for="currencySelect">العملة</label>
+            <select id="currencySelect" class="select"></select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="minBalance">حد أدنى للرصيد</label>
+            <input id="minBalance" type="number" inputmode="decimal" placeholder="0" />
+          </div>
+          <div class="field">
+            <label for="confirmType">نوع التأكيد</label>
+            <select id="confirmType" class="select">
+              <option value="any">أيًّا كان</option>
+              <option value="positive">إيجابي</option>
+              <option value="negative">سلبي</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="checkbox"><input id="includeUnapplied" type="checkbox" /> تضمين الحركات غير المطبّقة</label>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" id="applyFilters">تطبيق الفلاتر</button>
+          <button class="btn" id="resetFilters">تصفير</button>
+        </div>
+
+        <hr style="margin:14px 0;border:none;border-top:1px solid var(--border)"/>
+        <div class="field">
+          <label>حفظ الفلاتر تلقائيًا</label>
+          <label class="checkbox"><input id="autoSave" type="checkbox" checked /> تفعيل</label>
+        </div>
+      </aside>
+
+      <!-- Results / Grid -->
+      <section class="results" aria-live="polite" aria-busy="false">
+        <div class="toolbar" role="region" aria-label="شريط أدوات">
+          <div class="input grow" aria-label="بحث سريع">
+            🔎
+            <input id="q" type="search" placeholder="بحث باسم/رقم الطرف" />
+          </div>
+          <select id="sortBy" class="select" aria-label="فرز حسب">
+            <option value="name">الاسم</option>
+            <option value="code">الكود</option>
+            <option value="balance">الرصيد</option>
+          </select>
+          <label class="checkbox" title="تحديد الكل"><input id="selectAll" type="checkbox" /> تحديد الكل</label>
+          <button class="btn" id="btnGenerate">توليد خطابات</button>
+          <button class="btn" id="btnEmail">إرسال بالبريد</button>
+          <button class="btn" id="btnZip">تنزيل ZIP</button>
+          <button class="btn" id="btnPDF">PDF مدمج</button>
+        </div>
+
+        <div class="table-wrap" id="tableWrap">
+          <table aria-describedby="tableCaption">
+            <caption id="tableCaption" class="visually-hidden">جدول الأطراف</caption>
+            <thead>
+              <tr>
+                <th style="width:36px"></th>
+                <th>اسم الطرف</th>
+                <th>الكود</th>
+                <th>الفرع</th>
+                <th>العملة</th>
+                <th>الرصيد</th>
+                <th>عمر الدين</th>
+                <th>حالة آخر خطاب</th>
+                <th style="width:48px">تفاصيل</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+          <div id="emptyState" class="empty" hidden>لا نتائج مطابقة — عدّل الفلاتر أو البحث.</div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div>نسخة الواجهة: v1.0 — (واجهة فقط)</div>
+      <div id="genTime">وقت التوليد: —</div>
+      <div><a href="#" target="_blank" rel="noopener">سياسة الخصوصية</a></div>
+    </footer>
+
+    <!-- سجل تدقيقي وهمي -->
+    <section aria-label="سجل العمليات" style="border:1px solid var(--border); border-radius:14px; padding:12px; margin-bottom:24px;">
+      <h3 style="margin-top:0">السجل التدقيقي (وهمي)</h3>
+      <ol id="auditLog" start="1" style="margin:0; padding-inline-start: 22px;"></ol>
+      <p style="color:var(--ink-2); font-size:13px; margin-top:8px">* للمشاركة مع الصلاحيات لاحقًا: إخفاء/إظهار أزرار بناءً على دور المستخدم.</p>
+    </section>
+  </div>
+
+  <!-- Modals -->
+  <dialog id="previewModal" class="modal" aria-label="معاينة الخطاب">
+    <header>
+      <strong>معاينة الخطاب</strong>
+      <button class="btn" data-close>إغلاق</button>
+    </header>
+    <div class="content">
+      <div id="previewArea"></div>
+    </div>
+    <footer>
+      <button class="btn" id="printLetter">طباعة</button>
+      <button class="btn" id="downloadLetter">تنزيل PDF (HTML Blob)</button>
+      <button class="btn primary" data-close>تم</button>
+    </footer>
+  </dialog>
+
+  <dialog id="templateModal" class="modal" aria-label="إعدادات القالب">
+    <header>
+      <strong>إعدادات القالب</strong>
+      <button class="btn" data-close>إغلاق</button>
+    </header>
+    <div class="content">
+      <div class="template-grid">
+        <label class="field">
+          <span>نص الخطاب (إيجابي)</span>
+          <textarea id="tplPositive" rows="6" placeholder="نص التأكيد الإيجابي"></textarea>
+        </label>
+        <label class="field">
+          <span>نص الخطاب (سلبي)</span>
+          <textarea id="tplNegative" rows="6" placeholder="نص التأكيد السلبي"></textarea>
+        </label>
+        <div class="field">
+          <label class="checkbox"><input id="showOrg" type="checkbox" checked /> إظهار بيانات المؤسسة</label>
+          <label class="checkbox"><input id="showReply" type="checkbox" checked /> إظهار قصاصة الرد</label>
+          <label class="checkbox"><input id="showMoves" type="checkbox" checked /> إظهار ملخص الحركات</label>
+          <label class="checkbox"><input id="showQR" type="checkbox" /> إظهار QR</label>
+        </div>
+      </div>
+    </div>
+    <footer>
+      <button class="btn" id="saveTemplate">حفظ</button>
+      <button class="btn" id="resetTemplate">استعادة الافتراضي</button>
+      <button class="btn primary" data-close>تم</button>
+    </footer>
+  </dialog>
+
+  <!-- Overlays -->
+  <div class="spinner" id="spinner" aria-live="polite" aria-busy="false"><div class="ring" role="status" aria-label="جارٍ المعالجة"></div></div>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <!-- Print container for merged PDF (HTML) -->
+  <div id="printContainer" class="print-letters" hidden></div>
+
+  <script>
+    /* ============================================================
+       بيانات تجريبية (Dummy Data)
+    ============================================================ */
+    const branches = [{id:"R", name:"الرياض"},{id:"K", name:"الخبر"}];
+    const currencies = [{code:"SAR", name:"ريال سعودي"},{code:"USD", name:"دولار"}];
+    const parties = [
+      {id:1, type:"customer", name:"مؤسسة بهاء عسير", code:"C-001", branch:"R", currency:"SAR", balance: 18250.75, aging:"30-60", lastLetter:{date:"2025-03-01", type:"positive", status:"أُرسل"}},
+      {id:2, type:"customer", name:"شركة نماء الشامل", code:"C-002", branch:"K", currency:"SAR", balance: 0, aging:"0-30", lastLetter:null},
+      {id:3, type:"vendor", name:"أصالة الجنوب", code:"V-019", branch:"R", currency:"SAR", balance: 5400, aging:">90", lastLetter:{date:"2025-02-10", type:"negative", status:"معترض"}},
+      {id:4, type:"customer", name:"شركة روّاد النظم", code:"C-014", branch:"K", currency:"SAR", balance: 1220.10, aging:"0-30", lastLetter:{date:"2025-01-15", type:"positive", status:"مؤكد"}},
+      {id:5, type:"vendor", name:"تقنية السحاب", code:"V-022", branch:"R", currency:"USD", balance: 310.00, aging:"30-60", lastLetter:{date:"2025-02-21", type:"positive", status:"أُرسل"}},
+      {id:6, type:"customer", name:"متاجر الوفرة", code:"C-099", branch:"R", currency:"SAR", balance: 9800.00, aging:"60-90", lastLetter:{date:"2025-04-01", type:"positive", status:"معلّق"}},
+      {id:7, type:"vendor", name:"الركن الحديث", code:"V-120", branch:"K", currency:"SAR", balance: 50.75, aging:"0-30", lastLetter:null},
+      {id:8, type:"customer", name:"حلول الميرة", code:"C-201", branch:"K", currency:"SAR", balance: 25000.00, aging:">90", lastLetter:{date:"2025-03-25", type:"negative", status:"معترض"}},
+      {id:9, type:"customer", name:"دواء الشفاء", code:"C-341", branch:"R", currency:"SAR", balance: 150.00, aging:"0-30", lastLetter:{date:"2024-12-29", type:"positive", status:"أُرسل"}},
+      {id:10, type:"vendor", name:"مرابع الشمال", code:"V-211", branch:"K", currency:"USD", balance: 0, aging:"0-30", lastLetter:null},
+      {id:11, type:"customer", name:"سنا المجرة", code:"C-412", branch:"R", currency:"SAR", balance: 610.90, aging:"30-60", lastLetter:null},
+      {id:12, type:"customer", name:"الماس الذهبي", code:"C-555", branch:"K", currency:"SAR", balance: 120000.45, aging:">90", lastLetter:{date:"2025-05-11", type:"positive", status:"أُرسل"}},
+      {id:13, type:"vendor", name:"أطياب القصيم", code:"V-310", branch:"R", currency:"SAR", balance: 70.00, aging:"0-30", lastLetter:{date:"2025-03-03", type:"negative", status:"أُرسل"}},
+      {id:14, type:"customer", name:"سفير البناء", code:"C-777", branch:"R", currency:"SAR", balance: 4321.00, aging:"60-90", lastLetter:{date:"2025-02-05", type:"positive", status:"معلّق"}},
+      {id:15, type:"vendor", name:"أنظمة رشيقة", code:"V-404", branch:"K", currency:"SAR", balance: 889.90, aging:"30-60", lastLetter:null},
+    ];
+
+    const openItems = {
+      1: [{doc:"INV-101", date:"2025-01-10", due:"2025-02-10", amount: 7250, unapplied: 0}],
+      2: [{doc:"INV-220", date:"2025-03-05", due:"2025-04-05", amount: 4200, unapplied: 300}],
+      3: [{doc:"BILL-778", date:"2024-12-20", due:"2025-01-20", amount: 5400, unapplied: 0}],
+      4: [{doc:"INV-330", date:"2025-02-02", due:"2025-03-02", amount: 1220.1, unapplied: 0}],
+      6: [{doc:"INV-991", date:"2025-04-10", due:"2025-05-10", amount: 9800, unapplied: 0}],
+      8: [{doc:"INV-880", date:"2025-01-11", due:"2025-02-11", amount: 25000, unapplied: 0}],
+      12:[{doc:"INV-1001", date:"2025-05-01", due:"2025-06-01", amount: 120000.45, unapplied: 0}],
+      14:[{doc:"INV-712", date:"2025-01-22", due:"2025-02-22", amount: 4321, unapplied: 0}],
+    };
+
+    /* ============================================================
+       حالة التطبيق + LocalStorage
+    ============================================================ */
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+    const state = {
+      filters: {
+        fromDate: '', toDate: '',
+        ptype: 'all', branch: 'all', currency: 'all',
+        minBalance: 0, confirmType: 'any', includeUnapplied: false,
+        q: '', sortBy: 'name'
+      },
+      template: {
+        positive: 'نفيدكم بأن رصيد حسابكم لدينا مطابق للسجلات لدينا كما هو موضح أدناه. نرجو تأكيدكم الإيجابي خلال 7 أيام من تاريخه.' ,
+        negative: 'نفيدكم بأن رصيد حسابكم لدينا يظهر عدم تطابق، ونرجو منكم إفادتنا بالملاحظات والمستندات المؤيدة خلال 7 أيام.' ,
+        showOrg: true, showReply: true, showMoves: true, showQR: false
+      },
+      selected: new Set(),
+      generatedMap: new Map(), // id -> HTML string
+      user: { name: 'مستخدم افتراضي' }
+    };
+
+    const STORAGE_KEY = 'match_letters_state_v1';
+    const saveAll = () => {
+      if (!$('#autoSave').checked) return;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    };
+    const loadAll = () => {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      try {
+        const obj = JSON.parse(raw);
+        Object.assign(state.filters, obj.filters || {});
+        Object.assign(state.template, obj.template || {});
+      } catch {}
+    };
+
+    /* ============================================================
+       UI Helpers
+    ============================================================ */
+    function toast(msg, type='success', timeout=3000) {
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.innerHTML = `<div>${msg}</div><button class="btn ghost" aria-label="إغلاق">✕</button>`;
+      const wrap = $('#toasts');
+      wrap.appendChild(t);
+      const close = () => t.remove();
+      t.querySelector('button').addEventListener('click', close);
+      if (timeout) setTimeout(close, timeout);
+    }
+    function setBusy(busy) {
+      const sp = $('#spinner');
+      sp.style.display = busy ? 'grid' : 'none';
+      sp.setAttribute('aria-busy', String(busy));
+    }
+    function formatCurrency(amount, code) {
+      return new Intl.NumberFormat('ar-SA', { style: 'currency', currency: code || 'SAR', maximumFractionDigits: 2 }).format(amount);
+    }
+
+    function audit(action, detail='') {
+      const li = document.createElement('li');
+      const ts = new Date().toLocaleString('ar-SA');
+      li.textContent = `[${ts}] ${state.user.name} — ${action}${detail ? ' — ' + detail : ''}`;
+      $('#auditLog').prepend(li);
+    }
+
+    /* ============================================================
+       Render: Filters + Options
+    ============================================================ */
+    function initOptions() {
+      // Branches
+      const bsel = $('#branchSelect');
+      bsel.innerHTML = `<option value="all">الكل</option>` + branches.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+      // Currencies
+      const csel = $('#currencySelect');
+      const distinct = [...new Set(currencies.map(c=>c.code))];
+      csel.innerHTML = `<option value="all">الكل</option>` + distinct.map(c=>`<option value="${c}">${c}</option>`).join('');
+
+      // Restore saved
+      $('#fromDate').value = state.filters.fromDate || '';
+      $('#toDate').value = state.filters.toDate || '';
+      $$('input[name="ptype"]').forEach(r=> r.checked = (r.value === state.filters.ptype));
+      bsel.value = state.filters.branch;
+      csel.value = state.filters.currency;
+      $('#minBalance').value = state.filters.minBalance;
+      $('#confirmType').value = state.filters.confirmType;
+      $('#includeUnapplied').checked = state.filters.includeUnapplied;
+      $('#q').value = state.filters.q;
+      $('#sortBy').value = state.filters.sortBy;
+
+      // Template modal restore
+      $('#tplPositive').value = state.template.positive;
+      $('#tplNegative').value = state.template.negative;
+      $('#showOrg').checked = state.template.showOrg;
+      $('#showReply').checked = state.template.showReply;
+      $('#showMoves').checked = state.template.showMoves;
+      $('#showQR').checked = state.template.showQR;
+    }
+
+    /* ============================================================
+       Filter + Sort + Search
+    ============================================================ */
+    function applyFilters() {
+      // collect UI values
+      state.filters.fromDate = $('#fromDate').value;
+      state.filters.toDate = $('#toDate').value;
+      state.filters.ptype = $('input[name="ptype"]:checked').value;
+      state.filters.branch = $('#branchSelect').value;
+      state.filters.currency = $('#currencySelect').value;
+      state.filters.minBalance = Number($('#minBalance').value || 0);
+      state.filters.confirmType = $('#confirmType').value;
+      state.filters.includeUnapplied = $('#includeUnapplied').checked;
+      state.filters.q = $('#q').value.trim();
+      state.filters.sortBy = $('#sortBy').value;
+      saveAll();
+      renderTable();
+    }
+
+    function filteredParties() {
+      let rows = parties.slice();
+      const f = state.filters;
+
+      if (f.ptype !== 'all') rows = rows.filter(p => p.type === f.ptype);
+      if (f.branch !== 'all') rows = rows.filter(p => p.branch === f.branch);
+      if (f.currency !== 'all') rows = rows.filter(p => p.currency === f.currency);
+      if (f.minBalance > 0) rows = rows.filter(p => (p.balance || 0) >= f.minBalance);
+
+      if (f.confirmType !== 'any') {
+        rows = rows.filter(p => (p.lastLetter && p.lastLetter.type === f.confirmType) || !p.lastLetter);
+      }
+
+      if (f.q) {
+        const q = f.q.toLowerCase();
+        rows = rows.filter(p => p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q));
+      }
+
+      // (الفترة + الحركات غير المطبقة) — تُستخدم فقط لعرض/تعليق في معاينة الخطاب.
+      // يمكن ربط الفترة مع المستندات لاحقًا.
+
+      switch (f.sortBy) {
+        case 'name': rows.sort((a,b)=> a.name.localeCompare(b.name, 'ar')); break;
+        case 'code': rows.sort((a,b)=> a.code.localeCompare(b.code, 'en')); break;
+        case 'balance': rows.sort((a,b)=> (b.balance||0) - (a.balance||0)); break;
+      }
+      return rows;
+    }
+
+    function renderTable() {
+      const rows = filteredParties();
+      const tb = $('#tbody'); tb.innerHTML = '';
+      $('#emptyState').hidden = rows.length !== 0;
+      const fmtBranch = id => (branches.find(b=>b.id===id)?.name || id);
+
+      rows.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.className = 'selectable';
+        tr.dataset.id = String(p.id);
+        if (state.selected.has(p.id)) tr.classList.add('selected');
+        tr.innerHTML = `
+          <td><input type="checkbox" aria-label="تحديد" data-check data-id="${p.id}" ${state.selected.has(p.id)?'checked':''}></td>
+          <td>${p.name}</td>
+          <td>${p.code}</td>
+          <td>${fmtBranch(p.branch)}</td>
+          <td>${p.currency}</td>
+          <td>${formatCurrency(p.balance, p.currency)}</td>
+          <td>${p.aging}</td>
+          <td>${renderStatus(p.lastLetter)}</td>
+          <td><button class="btn" data-details="${p.id}" title="تفاصيل">⤵︎</button></td>
+        `;
+        tb.appendChild(tr);
+
+        const dtr = document.createElement('tr');
+        dtr.className = 'details';
+        dtr.id = `details-${p.id}`;
+        dtr.innerHTML = `<td colspan="9">${renderDetails(p)}</td>`;
+        tb.appendChild(dtr);
+      });
+
+      $('#genTime').textContent = 'وقت التوليد: ' + new Date().toLocaleString('ar-SA');
+    }
+
+    function renderStatus(last) {
+      if (!last) return `<span class="status-pill status-pending">معلّق</span>`;
+      const map = { 'أُرسل':'status-sent', 'معلّق':'status-pending', 'معترض':'status-rejected', 'مؤكد':'status-confirmed' };
+      const cls = map[last.status] || 'status-pending';
+      return `<span class="status-pill ${cls}">${last.status}</span>`;
+    }
+
+    function renderDetails(p) {
+      const items = openItems[p.id] || [];
+      const itemsHtml = items.length
+        ? `<table style="width:100%; border-collapse: collapse" aria-label="فواتير مفتوحة"><thead><tr>
+            <th style="text-align:start; padding:6px; border-bottom:1px solid var(--border)">المستند</th>
+            <th style="text-align:start; padding:6px; border-bottom:1px solid var(--border)">التاريخ</th>
+            <th style="text-align:start; padding:6px; border-bottom:1px solid var(--border)">مستحق</th>
+            <th style="text-align:start; padding:6px; border-bottom:1px solid var(--border)">المبلغ</th>
+            <th style="text-align:start; padding:6px; border-bottom:1px solid var(--border)">غير مطبق</th>
+          </tr></thead><tbody>
+          ${items.map(it=>`<tr>
+            <td style="padding:6px; border-bottom:1px solid var(--border)">${it.doc}</td>
+            <td style="padding:6px; border-bottom:1px solid var(--border)">${it.date}</td>
+            <td style="padding:6px; border-bottom:1px solid var(--border)">${it.due}</td>
+            <td style="padding:6px; border-bottom:1px solid var(--border)">${formatCurrency(it.amount, parties.find(x=>x.id===p.id)?.currency)}</td>
+            <td style="padding:6px; border-bottom:1px solid var(--border)">${formatCurrency(it.unapplied, parties.find(x=>x.id===p.id)?.currency)}</td>
+          </tr>`).join('')}
+          </tbody></table>`
+        : `<div style="color:var(--ink-2)">لا توجد فواتير/حركات مفتوحة.</div>`;
+
+      const lastHtml = p.lastLetter
+        ? `<ul style="margin:6px 0 0 0; padding-inline-start: 18px;">
+            <li>التاريخ: ${p.lastLetter.date}</li>
+            <li>النوع: ${p.lastLetter.type === 'positive' ? 'إيجابي' : 'سلبي'}</li>
+            <li>الحالة: ${p.lastLetter.status}</li>
+            <li><a href="#" onclick="event.preventDefault()">رابط PDF (وهمي)</a></li>
+          </ul>`
+        : `<div style="color:var(--ink-2)">لا يوجد سجل خطابات سابق.</div>`;
+
+      return `
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <strong>آخر فواتير مفتوحة</strong>
+            ${itemsHtml}
+          </div>
+          <div>
+            <strong>سجل الخطابات السابقة</strong>
+            ${lastHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    /* ============================================================
+       Selection + Actions
+    ============================================================ */
+    function toggleRowSelection(id, checked) {
+      if (checked) state.selected.add(id); else state.selected.delete(id);
+      saveAll();
+      const row = $$(`tbody tr.selectable`).find(r => Number(r.dataset.id) === id);
+      if (row) row.classList.toggle('selected', checked);
+    }
+
+    function selectAllToggle(checked) {
+      const ids = filteredParties().map(p=>p.id);
+      ids.forEach(id => state.selected.add(id));
+      if (!checked) ids.forEach(id => state.selected.delete(id));
+      renderTable();
+      $('#selectAll').checked = checked;
+    }
+
+    /* ============================================================
+       Letter Templating
+    ============================================================ */
+    function buildLetterHTML(p) {
+      const t = state.template;
+      const orgBlock = t.showOrg ? `
+        <div>
+          <div style="font-weight:700">Smart Life ERP</div>
+          <div>سجل تجاري: 123456789</div>
+          <div>رقم ضريبي: 310123456789003</div>
+          <div>الرياض — المملكة العربية السعودية</div>
+        </div>` : '';
+      const txt = (t => t === 'negative' ? state.template.negative : state.template.positive)(
+        (state.filters.confirmType==='negative')? 'negative' : 'positive'
+      );
+
+      const moves = (openItems[p.id]||[]);
+      const movesHtml = state.template.showMoves && moves.length ? `
+        <div style="margin-top:10px">
+          <strong>ملخص الحركات ضمن الفترة:</strong>
+          <table style="width:100%; border-collapse: collapse; margin-top:6px">
+            <thead>
+              <tr>
+                <th style="text-align:start; padding:6px; border-bottom:1px solid #e5e7eb">المستند</th>
+                <th style="text-align:start; padding:6px; border-bottom:1px solid #e5e7eb">التاريخ</th>
+                <th style="text-align:start; padding:6px; border-bottom:1px solid #e5e7eb">مستحق</th>
+                <th style="text-align:start; padding:6px; border-bottom:1px solid #e5e7eb">المبلغ</th>
+                <th style="text-align:start; padding:6px; border-bottom:1px solid #e5e7eb">غير مطبق</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${moves.map(m=>`<tr>
+                <td style="padding:6px; border-bottom:1px solid #e5e7eb">${m.doc}</td>
+                <td style="padding:6px; border-bottom:1px solid #e5e7eb">${m.date}</td>
+                <td style="padding:6px; border-bottom:1px solid #e5e7eb">${m.due}</td>
+                <td style="padding:6px; border-bottom:1px solid #e5e7eb">${formatCurrency(m.amount, p.currency)}</td>
+                <td style="padding:6px; border-bottom:1px solid #e5e7eb">${formatCurrency(m.unapplied, p.currency)}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>` : '';
+
+      const reply = state.template.showReply ? `
+        <div class="reply-slip">
+          <strong>قصاصة الرد</strong>
+          <div class="info-grid">
+            <div>الطرف: ${p.name} (${p.code})</div>
+            <div>الفرع: ${branches.find(b=>b.id===p.branch)?.name}</div>
+            <div>العملة: ${p.currency}</div>
+            <div>الرصيد: ${formatCurrency(p.balance, p.currency)}</div>
+          </div>
+          <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items:center;">
+            <div>
+              <div>اسم الموقّع: __________________</div>
+              <div>التوقيع والختم: ______________</div>
+              <div>التاريخ: ____ / ____ / ______</div>
+            </div>
+            ${state.template.showQR ? `<div class="qr" title="QR" aria-label="QR"></div>` : ''}
+          </div>
+        </div>` : '';
+
+      return `
+        <article class="letter" data-party-id="${p.id}">
+          <header>
+            <div class="brand"><div class="logo" aria-hidden="true">SL</div><h3>خطاب مطابقة الرصيد</h3></div>
+            ${orgBlock}
+          </header>
+          <div class="info-grid">
+            <div>الطرف: <strong>${p.name}</strong> (${p.code})</div>
+            <div>النوع: ${p.type === 'customer' ? 'عميل' : 'مورد'}</div>
+            <div>الفرع: ${branches.find(b=>b.id===p.branch)?.name}</div>
+            <div>العملة: ${p.currency}</div>
+            <div>الرصيد الحالي: ${formatCurrency(p.balance, p.currency)}</div>
+            <div>عمر الدين: ${p.aging}</div>
+          </div>
+          <p style="margin-top:8px">${txt}</p>
+          <p style="color:#475569; font-size: 14px;">يرجى الرد عبر هذا الرابط (وهمي): <a href="#">https://confirm.example/${p.id}</a></p>
+          ${movesHtml}
+          ${reply}
+        </article>
+      `;
+    }
+
+    /* ============================================================
+       Actions: Generate / Preview / Email / ZIP / PDF merged
+    ============================================================ */
+    function requireSelection() {
+      if (state.selected.size === 0) { toast('يرجى اختيار صف واحد على الأقل', 'warn'); return false; }
+      return true;
+    }
+
+    async function generateLetters() {
+      if (!requireSelection()) return;
+      setBusy(true);
+      await new Promise(r=>setTimeout(r, 300)); // fake small delay
+      for (const id of state.selected) {
+        const p = parties.find(x=>x.id===id);
+        const html = buildLetterHTML(p);
+        state.generatedMap.set(id, html);
+      }
+      setBusy(false);
+      toast('تم توليد الخطابات المحددة', 'success');
+      audit('توليد خطابات', `عدد: ${state.selected.size}`);
+
+      // افتح أول معاينة
+      const first = state.selected.values().next().value;
+      if (first) showPreview(first);
+    }
+
+    function showPreview(id) {
+      const html = state.generatedMap.get(id);
+      if (!html) { toast('ليس هناك معاينة — قم بالتوليد أولًا', 'warn'); return; }
+      $('#previewArea').innerHTML = html;
+      $('#previewModal').showModal();
+    }
+
+    function downloadAsHTMLBlob(filename, html) {
+      const blob = new Blob([`<!doctype html><html lang=\"ar\" dir=\"rtl\"><meta charset=\"utf-8\"><title>${filename}</title><body>${html}</body></html>`], {type:'text/html'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename + '.html';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function downloadZIP() {
+      if (!requireSelection()) return;
+      if (state.generatedMap.size === 0) { toast('قم بتوليد الخطابات أولًا', 'warn'); return; }
+
+      // بدون مكتبات: تنزيل متعدد كـ HTML Blobs
+      // TODO: عند الدمج مع الخادم أو إضافة مكتبة JSZip، يمكن إنشاء ملف ZIP واحد يجمع كل HTML/PDF.
+      let count = 0;
+      for (const id of state.selected) {
+        const p = parties.find(x=>x.id===id);
+        const html = state.generatedMap.get(id);
+        if (html) { downloadAsHTMLBlob(`${p.code}-${p.name}-letter`, html); count++; }
+      }
+      toast(`تم تجهيز ${count} ملفًا للتنزيل (HTML)`, 'success');
+      audit('تنزيل متعدد', `عدد: ${count}`);
+    }
+
+    async function sendEmailFake() {
+      if (!requireSelection()) return;
+      setBusy(true);
+      await new Promise(r=>setTimeout(r, 1000)); // تأخير وهمي
+      setBusy(false);
+      // تحديث حالة آخر خطاب
+      for (const id of state.selected) {
+        const p = parties.find(x=>x.id===id);
+        p.lastLetter = { date: new Date().toISOString().slice(0,10), type: state.filters.confirmType==='negative'?'negative':'positive', status:'أُرسل' };
+      }
+      renderTable();
+      toast('تم إرسال الخطابات بالبريد (محاكاة)', 'success');
+      audit('إرسال بالبريد', `عدد: ${state.selected.size}`);
+    }
+
+    function mergedPDFPreview() {
+      if (!requireSelection()) return;
+      if (state.generatedMap.size === 0) { toast('قم بتوليد الخطابات أولًا', 'warn'); return; }
+      const wrap = $('#printContainer');
+      wrap.innerHTML = '';
+      for (const id of state.selected) {
+        const html = state.generatedMap.get(id);
+        if (html) {
+          const div = document.createElement('div');
+          div.innerHTML = html;
+          wrap.appendChild(div.firstElementChild); // article.letter
+        }
+      }
+      wrap.hidden = false;
+      toast('جاهز للطباعة — سيُفصل كل خطاب في صفحة مستقلة', 'success');
+      setTimeout(()=>window.print(), 50);
+      audit('معاينة PDF مدمج (طباعة HTML)', `عدد: ${state.selected.size}`);
+    }
+
+    /* ============================================================
+       Events Wiring
+    ============================================================ */
+    function wireEvents() {
+      $('#applyFilters').addEventListener('click', applyFilters);
+      $('#resetFilters').addEventListener('click', () => {
+        Object.assign(state.filters, { fromDate:'', toDate:'', ptype:'all', branch:'all', currency:'all', minBalance:0, confirmType:'any', includeUnapplied:false, q:'', sortBy:'name' });
+        saveAll(); initOptions(); renderTable();
+      });
+
+      $('#q').addEventListener('input', () => { state.filters.q = $('#q').value; renderTable(); });
+      $('#sortBy').addEventListener('change', () => { state.filters.sortBy = $('#sortBy').value; saveAll(); renderTable(); });
+      $('#selectAll').addEventListener('change', e => selectAllToggle(e.target.checked));
+
+      $('#tbody').addEventListener('change', e => {
+        if (e.target.matches('[data-check]')) {
+          const id = Number(e.target.dataset.id);
+          toggleRowSelection(id, e.target.checked);
+        }
+      });
+
+      $('#tbody').addEventListener('click', e => {
+        const btn = e.target.closest('[data-details]');
+        if (btn) {
+          const id = btn.getAttribute('data-details');
+          const row = document.getElementById('details-' + id);
+          row.classList.toggle('open');
+        }
+      });
+
+      $('#btnGenerate').addEventListener('click', generateLetters);
+      $('#btnEmail').addEventListener('click', sendEmailFake);
+      $('#btnZip').addEventListener('click', downloadZIP);
+      $('#btnPDF').addEventListener('click', mergedPDFPreview);
+
+      // Preview modal actions
+      $('#printLetter').addEventListener('click', () => window.print());
+      $('#downloadLetter').addEventListener('click', () => {
+        const article = $('#previewArea .letter');
+        if (!article) return toast('لا توجد معاينة نشطة', 'warn');
+        const id = Number(article.getAttribute('data-party-id'));
+        const p = parties.find(x=>x.id===id);
+        downloadAsHTMLBlob(`${p.code}-${p.name}-letter`, article.outerHTML);
+      });
+
+      // open/close modals
+      $('#openTemplateBtn').addEventListener('click', () => $('#templateModal').showModal());
+      $$('dialog [data-close]').forEach(b => b.addEventListener('click', e => e.target.closest('dialog').close()));
+
+      // save template
+      $('#saveTemplate').addEventListener('click', () => {
+        state.template.positive = $('#tplPositive').value.trim() || state.template.positive;
+        state.template.negative = $('#tplNegative').value.trim() || state.template.negative;
+        state.template.showOrg = $('#showOrg').checked;
+        state.template.showReply = $('#showReply').checked;
+        state.template.showMoves = $('#showMoves').checked;
+        state.template.showQR = $('#showQR').checked;
+        saveAll();
+        toast('تم حفظ إعدادات القالب', 'success');
+      });
+      $('#resetTemplate').addEventListener('click', () => {
+        state.template = {
+          positive: 'نفيدكم بأن رصيد حسابكم لدينا مطابق للسجلات لدينا كما هو موضح أدناه. نرجو تأكيدكم الإيجابي خلال 7 أيام من تاريخه.',
+          negative: 'نفيدكم بأن رصيد حسابكم لدينا يظهر عدم تطابق، ونرجو منكم إفادتنا بالملاحظات والمستندات المؤيدة خلال 7 أيام.',
+          showOrg: true, showReply: true, showMoves: true, showQR: false
+        };
+        initOptions(); saveAll();
+        toast('تمت الاستعادة للوضع الافتراضي', 'success');
+      });
+
+      // theme toggle
+      $('#toggleTheme').addEventListener('click', (e) => {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        e.currentTarget.setAttribute('aria-pressed', String(!isDark));
+      });
+
+      // row click selects checkbox (keyboard friendly)
+      $('#tbody').addEventListener('click', e => {
+        const tr = e.target.closest('tr.selectable');
+        if (tr && !e.target.closest('input,button,a')) {
+          const id = Number(tr.dataset.id);
+          const cb = tr.querySelector('[data-check]');
+          cb.checked = !cb.checked; cb.dispatchEvent(new Event('change', {bubbles:true}));
+        }
+      });
+
+      // keyboard navigation hint: focus first input
+      document.addEventListener('keydown', (e) => {
+        if (e.key === '/' && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); $('#q').focus(); }
+      });
+    }
+
+    /* ============================================================
+       Init
+    ============================================================ */
+    function init() {
+      loadAll();
+      initOptions();
+      renderTable();
+      wireEvents();
+      audit('دخول الصفحة');
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

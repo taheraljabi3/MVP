@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>حزمة القوائم المالية – تنسيق المحاسب القانوني</title>
+  <style>
+    :root{
+      --ink:#111827; --muted:#6B7280; --line:#D1D5DB; --soft:#F3F4F6; --accent:#0F766E;
+    }
+    html,body{background:#fff;color:var(--ink);font:14px/1.8 "IBM Plex Sans Arabic","Segoe UI",Tahoma,Arial,sans-serif;margin:0}
+    .container{max-width:950px;margin:18px auto;padding:16px}
+
+    /* Header */
+    .header{border-bottom:2px solid var(--line);padding-bottom:10px;margin-bottom:12px}
+    .head-top{display:flex;align-items:center;gap:14px}
+    .logo{width:110px;height:64px;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);border-radius:8px}
+    .head-meta{flex:1}
+    .company{font-size:20px;font-weight:700}
+    .subtitle{font-size:13px;color:var(--muted)}
+    .report-title{font-size:18px;font-weight:700;color:#000;margin-top:6px}
+    .meta{display:flex;flex-wrap:wrap;gap:10px;color:var(--muted);font-size:12px;margin-top:6px}
+
+    /* Tabs */
+    .tabs{display:flex;gap:8px;margin:8px 0 14px}
+    .tab{border:1px solid var(--line);background:#fafafa;padding:6px 12px;border-radius:999px;cursor:pointer;font-size:13px}
+    .tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+    /* Card & table */
+    .card{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+    .card h3{margin:0;padding:10px 12px;background:var(--soft);border-bottom:1px solid var(--line);font-size:14px}
+    .section{padding:12px}
+
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:6px 6px;border-bottom:1px solid var(--line);font-size:13px}
+    th{background:#F9FAFB;color:#374151;text-align:right}
+    td.num{text-align:left;direction:ltr}
+
+    /* Double underline for totals */
+    .totline{border-bottom:2px solid #000}
+    .totdouble{border-bottom:4px double #000}
+
+    .footnote{font-size:12px;color:var(--muted);margin-top:12px}
+    .sign{display:flex;justify-content:flex-start;margin-top:30px;color:#374151}
+    .sign .line{width:220px;height:24px;border-bottom:1px solid #777}
+
+    /* Controls */
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+    .chip{border:1px solid var(--line);padding:6px 10px;border-radius:8px;background:#fafafa;font-size:13px}
+    .chip input,.chip select{border:none;background:transparent;outline:none}
+    .btn{background:#111827;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px}
+    .btn.alt{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+
+    /* Print */
+    @media print{
+      @page{size:A4;margin:12mm}
+      .tabs,.controls,.json{display:none!important}
+      .container{padding:0}
+    }
+
+    /* JSON area */
+    .json{margin-top:12px}
+    textarea{width:100%;min-height:160px;border:1px solid var(--line);border-radius:8px;padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="head-top">
+        <div class="logo">شعار</div>
+        <div class="head-meta">
+          <div class="company" id="company">شركة مثال المحدودة</div>
+          <div class="subtitle">الأحساء – المملكة العربية السعودية</div>
+          <div class="report-title" id="docTitle">قائمة المركز المالي في 31 ديسمبر 2024م (بالريال السعودي)</div>
+          <div class="meta">
+            <div>للتاريخ: <span id="asof">31-12-2024</span></div>
+            <div>العملة: <span id="currency">SAR</span></div>
+            <div id="layoutTag">تنسيق المحاسب القانوني</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-view="bs">المركز المالي</button>
+      <button class="tab" data-view="pl">قائمة الدخل</button>
+      <button class="btn" onclick="window.print()">طباعة</button>
+      <button class="btn alt" id="btnReset">استرجاع بيانات افتراضية</button>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <label class="chip">الشركة: <input id="inpCompany" value="شركة مثال المحدودة"></label>
+      <label class="chip">التاريخ: <input id="inpDate" type="date" value="2024-12-31"></label>
+      <label class="chip">العملة: <input id="inpCurr" value="SAR"></label>
+      <label class="chip">مخصص الزكاة: 
+        <select id="zakatPlacement">
+          <option value="balance" selected>ضمن المركز المالي (التزامات)</option>
+          <option value="income">ضمن قائمة الدخل</option>
+        </select>
+      </label>
+    </div>
+
+    <!-- Balance Sheet -->
+    <div id="view-bs" class="card">
+      <h3>المركز المالي</h3>
+      <div class="section">
+        <table id="tblBS">
+          <thead>
+            <tr>
+              <th>البند</th>
+              <th class="num">2024/12/31</th>
+              <th class="num">2023/12/31</th>
+            </tr>
+          </thead>
+          <tbody id="bs-body"></tbody>
+        </table>
+        <div class="footnote">تعتبر الإيضاحات المرفقة جزءًا لا يتجزأ من هذه القوائم المالية.</div>
+        <div class="sign"><div>التوقيع: &nbsp;</div><div class="line"></div></div>
+      </div>
+    </div>
+
+    <!-- Income Statement -->
+    <div id="view-pl" class="card" style="display:none">
+      <h3>قائمة الدخل الشامل</h3>
+      <div class="section">
+        <table id="tblPL">
+          <thead>
+            <tr>
+              <th>البند</th>
+              <th class="num">2024</th>
+              <th class="num">2023</th>
+            </tr>
+          </thead>
+          <tbody id="pl-body"></tbody>
+        </table>
+        <div class="footnote">تعتبر الإيضاحات المرفقة جزءًا لا يتجزأ من هذه القوائم المالية.</div>
+        <div class="sign"><div>التوقيع: &nbsp;</div><div class="line"></div></div>
+      </div>
+    </div>
+
+    <!-- JSON area -->
+    <div class="json">
+      <p class="subtitle">🔧 يمكنك لصق JSON لتعبئة القوائم (أدناه بيانات مثال). ثم عدّل مواضع البنود حسب حاجتك.</p>
+      <textarea id="jsonBox" dir="ltr"></textarea>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <button class="btn alt" id="applyJson">تطبيق JSON</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ------- Sample Data reflecting auditor style -------
+    const sample = {
+      company:"شركة مثال المحدودة",
+      asOf:"2024-12-31",
+      currency:"SAR",
+      zakatPlacement:"balance", // balance | income
+      balanceSheet:{
+        currentAssets:[
+          ["نقد بالصندوق ولدى البنوك", 339842, 223817],
+          ["عملاء", 402315, 356213],
+          ["مدينون أطراف ذات علاقة", 195870, 175650],
+          ["مخزون", 318461, 299432],
+          ["أرصدة أخرى", 72895, 65810]
+        ],
+        nonCurrentAssets:[
+          ["ممتلكات وآلات ومعدات صافي", 1056650, 1012330]
+        ],
+        currentLiabilities:[
+          ["موردون", 525692, 507420],
+          ["ذمم دائنة أخرى", 172885, 162091],
+          ["قروض قصيرة الأجل", 91510, 90500]
+        ],
+        longTermLiabilities:[
+          ["قروض طويلة الأجل", 327735, 315220]
+        ],
+        equity:[
+          ["رأس المال", 900000, 900000],
+          ["احتياطي نظامي", 120000, 120000],
+          ["أرباح مبقاة", 295733, 265338]
+        ],
+        zakatProvision:["مخصص الزكاة وضريبة الدخل", 50000, 47000]
+      },
+      incomeStatement:{
+        rows:[
+          ["الإيرادات – بالصافي", 9249413, 9655987],
+          ["تكلفة الإيرادات", -8521501, -8051059],
+          ["مجمل الدخل", "calc"],
+          ["المصروفات والاعباء", -745073, -642941],
+          ["مصروفات عمومية وإدارية", -425037, -315274],
+          ["مجموع المصروفات والأعباء", "sumPrev:3:5"],
+          ["دخل / خسارة الأعمال الرئيسية", "calc"],
+          ["إيرادات متفرقة", 175948, 181019],
+          ["صافي دخل السنة قبل الزكاة والضريبة", "calc"],
+          ["الزكاة وضريبة الدخل", -154485, -152000],
+          ["صافي دخل السنة", "calc"],
+          ["الدخل الشامل الآخر", 0, 0],
+          ["إجمالي الدخل الشامل للسنة", "calc"]
+        ]
+      }
+    };
+
+    let state = JSON.parse(JSON.stringify(sample));
+
+    function fmt(n){
+      const sign = n<0?"(":"";
+      const abs = Math.abs(+n||0);
+      const txt = new Intl.NumberFormat('ar-EG',{maximumFractionDigits:0}).format(abs);
+      return (n<0?`(${txt})`:txt);
+    }
+
+    function renderHeader(){
+      document.getElementById('company').textContent = state.company;
+      document.getElementById('asof').textContent = new Date(state.asOf).toLocaleDateString('ar-EG');
+      document.getElementById('currency').textContent = state.currency;
+      document.getElementById('docTitle').textContent =
+        document.querySelector('.tab.active').dataset.view==='bs'
+        ? `قائمة المركز المالي في ${new Date(state.asOf).toLocaleDateString('ar-EG')} (بال${state.currency})`
+        : `قائمة الدخل الشامل للسنة المنتهية في ${new Date(state.asOf).getFullYear()} (بال${state.currency})`;
+    }
+
+    function addRow(tbody, label, cNow, cPrev, options={}){
+      const tr = document.createElement('tr');
+      if(options.header){ tr.innerHTML = `<th colspan="3">${label}</th>`; tbody.appendChild(tr); return; }
+      tr.innerHTML = `<td>${label}</td><td class="num">${cNow!==''?fmt(cNow):''}</td><td class="num">${cPrev!==''?fmt(cPrev):''}</td>`;
+      if(options.className){ tr.classList.add(options.className); }
+      tbody.appendChild(tr);
+    }
+
+    function sumRows(arr){ return arr.reduce((a,b)=> a + (+b[1]||0), 0); }
+
+    function renderBS(){
+      const b = state.balanceSheet; const tb = document.getElementById('bs-body'); tb.innerHTML='';
+      addRow(tb,'أصول', '', '', {header:true});
+      addRow(tb,'أصول متداولة', '', '', {header:true});
+      b.currentAssets.forEach(r=> addRow(tb, r[0], r[1], r[2]));
+      const totCA = sumRows(b.currentAssets); addRow(tb,'', '', '', {className:'totline'});
+      addRow(tb,'مجموع الأصول المتداولة', totCA, sumRows(b.currentAssets.map(x=>[x[0],x[2]])), {className:'totdouble'});
+
+      addRow(tb,'ممتلكات وآلات ومعدات – صافي', b.nonCurrentAssets[0][1], b.nonCurrentAssets[0][2]);
+      const totalAssetsNow = totCA + (b.nonCurrentAssets[0][1]||0);
+      const totalAssetsPrev = sumRows(b.currentAssets.map(x=>[x[0],x[2]])) + (b.nonCurrentAssets[0][2]||0);
+      addRow(tb,'', '', '', {className:'totline'});
+      addRow(tb,'مجموع الأصول', totalAssetsNow, totalAssetsPrev, {className:'totdouble'});
+
+      addRow(tb,'الالتزامات وحقوق الملكية', '', '', {header:true});
+      addRow(tb,'الالتزامات المتداولة', '', '', {header:true});
+      b.currentLiabilities.forEach(r=> addRow(tb, r[0], r[1], r[2]));
+      if(state.zakatPlacement==='balance' && b.zakatProvision){ addRow(tb, b.zakatProvision[0], b.zakatProvision[1], b.zakatProvision[2]); }
+      const totCL = sumRows(b.currentLiabilities) + (state.zakatPlacement==='balance' ? (+b.zakatProvision?.[1]||0) : 0);
+      const totCLprev = sumRows(b.currentLiabilities.map(x=>[x[0],x[2]])) + (state.zakatPlacement==='balance' ? (+b.zakatProvision?.[2]||0) : 0);
+      addRow(tb,'', '', '', {className:'totline'});
+      addRow(tb,'مجموع الالتزامات المتداولة', totCL, totCLprev, {className:'totdouble'});
+
+      addRow(tb,'حقوق الملكية', '', '', {header:true});
+      b.equity.forEach(r=> addRow(tb, r[0], r[1], r[2]));
+      const totEQ = sumRows(b.equity);
+      const totEQprev = sumRows(b.equity.map(x=>[x[0],x[2]]));
+      addRow(tb,'', '', '', {className:'totline'});
+      addRow(tb,'مجموع حقوق الملكية', totEQ, totEQprev, {className:'totdouble'});
+
+      const totLE = totCL + totEQ;
+      const totLEprev = totCLprev + totEQprev;
+      addRow(tb,'', '', '', {className:'totline'});
+      addRow(tb,'مجموع الالتزامات وحقوق الملكية', totLE, totLEprev, {className:'totdouble'});
+    }
+
+    function computePL(rows){
+      // helper to compute derived rows like "calc" or "sumPrev:a:b"
+      const out = rows.map(r=> r.slice());
+      function val(i){ const v = out[i][1]; return typeof v==='number'? v:0; }
+      function valP(i){ const v = out[i][2]; return typeof v==='number'? v:0; }
+
+      for(let i=0;i<out.length;i++){
+        const [label, now, prev] = out[i];
+        if(now==="calc"){ // simple running subtotal around common labels
+          if(label.includes('مجمل')){ // gross profit = revenues + cost (cost negative)
+            let rev = 0, cost = 0, revP=0, costP=0;
+            // assume row0 is revenue, row1 cost
+            rev = out[0][1]; cost = out[1][1]; revP = out[0][2]; costP = out[1][2];
+            out[i][1] = (rev||0) + (cost||0);
+            out[i][2] = (revP||0) + (costP||0);
+          } else if(label.includes('الأعمال الرئيسية')){
+            // gross + other expenses (negative rows 3..5)
+            const gp = out[2][1]; const gpP = out[2][2];
+            let sumExp=0, sumExpP=0; for(let j=3;j<=5;j++){ sumExp += (out[j][1]||0); sumExpP += (out[j][2]||0); }
+            out[i][1] = (gp||0) + sumExp; out[i][2] = (gpP||0) + sumExpP;
+          } else if(label.includes('قبل الزكاة')){
+            const main = out[6][1]; const other = out[7][1];
+            const mainP = out[6][2]; const otherP = out[7][2];
+            out[i][1] = (main||0) + (other||0);
+            out[i][2] = (mainP||0) + (otherP||0);
+          } else if(label==='صافي دخل السنة'){
+            // before zakat + zakat (negative)
+            const b4 = out[8][1]; const zak = out[9][1];
+            const b4p = out[8][2]; const zakp = out[9][2];
+            out[i][1] = (b4||0) + (zak||0);
+            out[i][2] = (b4p||0) + (zakp||0);
+          } else if(label.includes('إجمالي الدخل الشامل')){
+            const net = out[10][1]; const oci = out[11][1];
+            const netP = out[10][2]; const ociP = out[11][2];
+            out[i][1] = (net||0) + (oci||0);
+            out[i][2] = (netP||0) + (ociP||0);
+          }
+        } else if(typeof now==='string' && now.startsWith('sumPrev:')){
+          const [a,b] = now.split(':').slice(1).map(Number);
+          let s=0, sp=0; for(let k=a;k<=b;k++){ s += (out[k][1]||0); sp += (out[k][2]||0); }
+          out[i][1] = s; out[i][2] = sp;
+        }
+      }
+      // if zakat is selected to go to balance sheet, set row 9 to 0
+      if(state.zakatPlacement==='balance'){
+        out[9][1] = 0; out[9][2] = 0; // remove from P&L if shown in BS
+        // and recalc dependent rows
+        out[10][1] = (out[8][1]||0) + (out[9][1]||0);
+        out[10][2] = (out[8][2]||0) + (out[9][2]||0);
+        out[12][1] = (out[10][1]||0) + (out[11][1]||0);
+        out[12][2] = (out[10][2]||0) + (out[11][2]||0);
+      }
+      return out;
+    }
+
+    function renderPL(){
+      const tb = document.getElementById('pl-body'); tb.innerHTML='';
+      const rows = computePL(state.incomeStatement.rows);
+      rows.forEach((r,idx)=>{
+        const cls = (r[0].startsWith('مجموع') || r[0].startsWith('صافي') || r[0].startsWith('إجمالي')) ? 'totdouble' : (r[0].includes('مجمل')||r[0].includes('الأعمال الرئيسية')) ? 'totline' : '';
+        addRow(tb, r[0], r[1], r[2], {className:cls});
+      });
+    }
+
+    function renderAll(){
+      renderHeader();
+      renderBS();
+      renderPL();
+      document.getElementById('jsonBox').value = JSON.stringify(state, null, 2);
+    }
+
+    // Tabs
+    document.querySelectorAll('.tab').forEach(btn=>{
+      btn.addEventListener('click', e=>{
+        document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+        const v = e.currentTarget.dataset.view;
+        document.getElementById('view-bs').style.display = v==='bs'? 'block':'none';
+        document.getElementById('view-pl').style.display = v==='pl'? 'block':'none';
+        renderHeader();
+      })
+    })
+
+    // Controls
+    document.getElementById('inpCompany').addEventListener('input', e=>{ state.company=e.target.value; renderAll(); })
+    document.getElementById('inpDate').addEventListener('change', e=>{ state.asOf=e.target.value; renderAll(); })
+    document.getElementById('inpCurr').addEventListener('input', e=>{ state.currency=e.target.value||'SAR'; renderAll(); })
+    document.getElementById('zakatPlacement').addEventListener('change', e=>{ state.zakatPlacement=e.target.value; renderAll(); })
+
+    document.getElementById('applyJson').addEventListener('click', ()=>{
+      try{ const obj = JSON.parse(document.getElementById('jsonBox').value); state = obj; renderAll(); }
+      catch(e){ alert('صيغة JSON غير صحيحة'); }
+    })
+    document.getElementById('btnReset').addEventListener('click', ()=>{ state = JSON.parse(JSON.stringify(sample)); renderAll(); })
+
+    // Init
+    renderAll();
+  </script>
+</body>
+</html>

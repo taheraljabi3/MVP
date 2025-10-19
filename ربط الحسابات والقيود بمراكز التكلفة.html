@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart ERP — مراكز التكلفة</title>
+  <style>
+    :root{
+      --blue:#1877f2;--gold:#d4a017;--bg:#ffffff;--ink:#0f172a;--ink-2:#334155;--muted:#f1f5f9;--danger:#dc2626;--ok:#16a34a;--warn:#f59e0b;--shadow:0 8px 24px rgba(15,23,42,.08)
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--ink);font:14px system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Noto Sans",Tahoma,Arial}
+    header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #e5e7eb;box-shadow:0 2px 10px rgba(0,0,0,.03)}
+    .wrap{max-width:1200px;margin:auto;padding:16px}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    h1{font-size:18px;margin:0;letter-spacing:.2px}
+    .brand{display:flex;align-items:center;gap:10px}
+    .brand .logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--blue),#4ea5ff);box-shadow:var(--shadow)}
+    .actions{margin-inline-start:auto;display:flex;gap:8px;flex-wrap:wrap}
+    .search{position:relative;min-width:260px}
+    .search input{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;background:#fff}
+
+    .btn{appearance:none;border:0;border-radius:12px;padding:10px 14px;background:var(--blue);color:#fff;cursor:pointer;box-shadow:var(--shadow)}
+    .btn:focus{outline:3px solid rgba(24,119,242,.25)}
+    .btn.secondary{background:#eef3ff;color:var(--blue)}
+    .btn.gold{background:var(--gold);color:#111}
+    .btn.ghost{background:#fff;color:var(--blue);border:1px solid #e5e7eb}
+    .btn.danger{background:var(--danger)}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+
+    nav.tabs{border-bottom:1px solid #e5e7eb;margin-top:8px}
+    .tablist{display:flex;gap:6px;flex-wrap:wrap}
+    .tab{border:0;background:#fff;padding:10px 12px;border-radius:12px 12px 0 0}
+    .tab[aria-selected="true"], .tab:hover{background:#f8fbff;color:var(--blue);border-bottom:2px solid var(--blue)}
+
+    section{padding:16px}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:var(--shadow);padding:12px}
+
+    table{width:100%;border-collapse:separate;border-spacing:0 8px}
+    thead th{font-weight:600;text-align:right;padding:10px;color:var(--ink-2)}
+    tbody tr{background:#fff;border:1px solid #e5e7eb}
+    tbody td{padding:10px;border-top:1px solid #e5e7eb}
+    tbody tr{border-radius:10px;overflow:hidden}
+    tbody tr:hover{box-shadow:var(--shadow)}
+
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid #e5e7eb;background:#fff}
+    .badge.blue{background:#eef3ff;color:var(--blue);border-color:#dce9ff}
+    .badge.gold{background:#fff7e6;color:#7a5b00;border-color:#ffe7b3}
+    .badge.lock{background:#f3f4f6;color:#6b7280}
+
+    .chip{display:inline-block;padding:4px 8px;border-radius:999px;background:#f1f5f9;margin:2px;font-size:12px;border:1px solid #e5e7eb}
+
+    .grid{display:grid;gap:12px}
+    .cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+
+    .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+
+    /* Modals */
+    dialog{border:0;border-radius:16px;box-shadow:var(--shadow);width:min(720px,96vw)}
+    dialog::backdrop{background:rgba(0,0,0,.35)}
+    .modal-head{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #eee}
+    .modal-body{padding:12px;max-height:65vh;overflow:auto}
+    .modal-foot{padding:12px;display:flex;gap:8px;justify-content:flex-start;border-top:1px solid #eee}
+
+    /* Toast */
+    #toasts{position:fixed;inset-inline-end:16px;top:16px;display:flex;flex-direction:column;gap:8px;z-index:50}
+    .toast{background:#111;color:#fff;padding:10px 14px;border-radius:10px;box-shadow:var(--shadow)}
+
+    /* Progress */
+    .progress{height:8px;background:#eef2f7;border-radius:999px;overflow:hidden}
+    .progress span{display:block;height:100%;background:var(--blue);width:0}
+
+    /* Footer */
+    footer{border-top:1px solid #e5e7eb;padding:12px;color:#475569}
+
+    /* Inputs */
+    input[type="text"], input[type="number"], input[type="date"], select, textarea{
+      width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px;background:#fff
+    }
+    label{font-size:12px;color:#475569}
+    .hint{font-size:12px;color:#64748b}
+
+    /* Print */
+    @media print{
+      header, nav.tabs, .actions, .toolbar, .modal-foot, .btn, footer, #toasts{display:none !important}
+      body{background:#fff}
+      .card{box-shadow:none;border:0}
+    }
+  </style>
+</head>
+<body>
+  <header aria-label="رأس الصفحة">
+    <div class="wrap">
+      <div class="row">
+        <div class="brand" aria-label="شعار النظام">
+          <div class="logo" aria-hidden="true"></div>
+          <h1>Smart ERP — مراكز التكلفة</h1>
+        </div>
+        <div class="actions" role="toolbar" aria-label="شريط الإجراءات">
+          <button class="btn" id="btnAddAccount">إضافة حساب</button>
+          <button class="btn" id="btnAddCC">إضافة مركز تكلفة</button>
+          <button class="btn gold" id="btnPresets">قوالب التوزيع</button>
+          <button class="btn ghost" id="btnExport">تصدير</button>
+          <button class="btn secondary" id="btnSettings">إعدادات</button>
+          <div class="search" aria-label="بحث عام">
+            <input id="globalSearch" type="text" placeholder="بحث في الحسابات/المراكز/القيود… (Ctrl+/)" aria-label="بحث" />
+          </div>
+        </div>
+      </div>
+    </div>
+    <nav class="tabs wrap" role="tablist" aria-label="التبويبات">
+      <div class="tablist">
+        <button class="tab" role="tab" aria-selected="true" data-tab="accounts">الحسابات & الافتراضات</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="journal">قيود اليومية</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="centers">مراكز التكلفة</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="reports">التقارير السريعة</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="audit">السجل</button>
+      </div>
+    </nav>
+  </header>
+
+  <main class="wrap" id="app" tabindex="-1"></main>
+
+  <footer class="wrap">
+    <div class="row">
+      <span>نسخة Demo — تحفظ البيانات محليًا (localStorage).</span>
+      <button class="btn danger" id="btnClear">مسح البيانات المؤقتة</button>
+    </div>
+  </footer>
+
+  <!-- Modals -->
+  <dialog id="modal-defaults" aria-label="تعيين افتراضات مركز التكلفة">
+    <form method="dialog">
+      <div class="modal-head">
+        <strong>تعيين افتراضات الحساب <span id="defaultsAccountName"></span></strong>
+        <button class="btn ghost" value="close" aria-label="إغلاق">إغلاق</button>
+      </div>
+      <div class="modal-body">
+        <div class="grid cols-3">
+          <div>
+            <label for="defaultsMode">وضع الافتراض</label>
+            <select id="defaultsMode" aria-label="وضع الافتراض">
+              <option value="none">لا يوجد</option>
+              <option value="suggest">اقتراح قابل للتعديل</option>
+              <option value="fixed">قيمة ثابتة غير قابلة للتعديل</option>
+            </select>
+            <div class="hint">إذا كان "ثابت" سيظهر قفل في القيد ولا يسمح بالتعديل.</div>
+          </div>
+          <div>
+            <label>إظهار المراكز غير النشطة؟</label>
+            <div class="row"><input type="checkbox" id="showInactiveInDefaults" /> <span class="hint">إظهار مؤقت</span></div>
+          </div>
+        </div>
+        <div class="toolbar"><button type="button" class="btn secondary" id="btnAddSplitRow">إضافة مركز</button></div>
+        <div class="card" role="region" aria-label="قائمة التوزيع">
+          <table>
+            <thead>
+              <tr>
+                <th>مركز التكلفة</th>
+                <th style="width:140px">النسبة %</th>
+                <th style="width:80px">حذف</th>
+              </tr>
+            </thead>
+            <tbody id="defaultsSplitBody"></tbody>
+          </table>
+          <div class="progress" aria-label="نسبة الاكتمال"><span id="defaultsProgress"></span></div>
+          <div class="hint" id="defaultsHint"></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" id="btnSaveDefaults" value="save">حفظ</button>
+        <button class="btn ghost" value="close">إلغاء</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="modal-split" aria-label="توزيع مركز التكلفة للسطر">
+    <form method="dialog">
+      <div class="modal-head">
+        <strong>توزيع السطر — <span id="splitLineTitle"></span></strong>
+        <div class="row">
+          <select id="splitMode">
+            <option value="pct">النسب ٪</option>
+            <option value="amt">المبالغ</option>
+          </select>
+          <button class="btn gold" id="btnApplyPreset" type="button">تطبيق قالب</button>
+          <button class="btn ghost" value="close" aria-label="إغلاق">إغلاق</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="toolbar">
+          <button type="button" class="btn secondary" id="btnAddSplitLine">إضافة مركز</button>
+        </div>
+        <div class="card">
+          <table>
+            <thead>
+              <tr>
+                <th>مركز التكلفة</th>
+                <th style="width:160px"><span id="splitValueHdr">النسبة %</span></th>
+                <th style="width:80px">حذف</th>
+              </tr>
+            </thead>
+            <tbody id="splitBody"></tbody>
+          </table>
+          <div class="progress" aria-label="نسبة الاكتمال"><span id="splitProgress"></span></div>
+          <div class="hint" id="splitHint"></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" id="btnSaveSplit" value="save">حفظ التوزيع</button>
+        <button class="btn ghost" value="close">إلغاء</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="modal-presets" aria-label="قوالب التوزيع">
+    <form method="dialog">
+      <div class="modal-head">
+        <strong>إدارة القوالب</strong>
+        <button class="btn ghost" value="close">إغلاق</button>
+      </div>
+      <div class="modal-body">
+        <div class="toolbar">
+          <input id="presetName" type="text" placeholder="اسم القالب (مثال: Utilities 60/30/10)"/>
+          <button class="btn secondary" id="btnPresetFromCurrent" type="button">حفظ من التوزيع الحالي</button>
+        </div>
+        <div class="card" id="presetsList"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" value="close">تم</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="modal-settings" aria-label="إعدادات">
+    <form method="dialog">
+      <div class="modal-head">
+        <strong>إعدادات القواعد</strong>
+        <button class="btn ghost" value="close">إغلاق</button>
+      </div>
+      <div class="modal-body grid cols-2">
+        <div class="card">
+          <label>إلزام المراكز للأنواع</label>
+          <div>
+            <label><input type="checkbox" id="enfExp"> مصروف</label>
+            <label><input type="checkbox" id="enfRev"> إيراد</label>
+          </div>
+          <div class="hint">لن يُسمح بالحفظ إن لم تُحدد مراكز لهذه الأنواع.</div>
+        </div>
+        <div class="card">
+          <label><input type="checkbox" id="allowOverride"> السماح بتجاوز الافتراضات من القيد</label>
+          <label><input type="checkbox" id="hideInactiveCC"> إخفاء المراكز غير النشطة افتراضيًا</label>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" id="btnSaveSettings" value="save">حفظ</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toasts" aria-live="polite" aria-atomic="true"></div>
+
+  <script>
+    // =================== الحالة العامة ===================
+    const LS_KEY = 'smart-erp-cc-state-v1';
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+    const demoState = {
+      costCenters:[
+        { id:"CC-100", name:"التصنيع", active:true, group:"تشغيلي" },
+        { id:"CC-200", name:"التسويق", active:true, group:"إداري" },
+        { id:"CC-300", name:"الإدارة", active:true, group:"عام" },
+        { id:"CC-400", name:"المشتريات", active:false, group:"تشغيلي" }
+      ],
+      accounts:[
+        { id:"6000", name:"مرافق وكهرباء", type:"expense", defaultCC:{ mode:"suggest", split:[{ccId:"CC-100", pct:60},{ccId:"CC-200", pct:30},{ccId:"CC-300", pct:10}] }},
+        { id:"6110", name:"سفر وترحيل", type:"expense", defaultCC:{ mode:"none", split:[] }},
+        { id:"1200", name:"المخزون", type:"balance", defaultCC:{ mode:"none", split:[] }},
+        { id:"4000", name:"إيرادات مبيعات", type:"revenue", defaultCC:{ mode:"none", split:[] }}
+      ],
+      journalEntries:[{
+        id:"JE-0001", date:new Date().toISOString().slice(0,10), memo:"فاتورة كهرباء",
+        lines:[
+          { accountId:"6000", desc:"كهرباء سبتمبر", debit:1000, credit:0, ccAlloc:{ source:"default", split:[{ccId:"CC-100", pct:60},{ccId:"CC-200", pct:40}] }},
+          { accountId:"1000", desc:"صندوق", debit:0, credit:1000, ccAlloc:{ source:"none", split:[] }}
+        ]
+      }],
+      presets:[{ id:"P-UTIL-631", name:"Utilities 60/30/10", split:[{ccId:"CC-100", pct:60},{ccId:"CC-200", pct:30},{ccId:"CC-300", pct:10}] }],
+      settings:{ enforceCCFor:["expense","revenue"], allowOverride:true, hideInactiveCC:true },
+      audit:[{ ts: Date.now()-86400000, action:"UPDATE_DEFAULTS", details:"6000 => 60/30/10 suggest" }]
+    };
+
+    let state = loadState();
+
+    function loadState(){
+      try{ const s = JSON.parse(localStorage.getItem(LS_KEY)); if(s) return s; }catch(e){}
+      return structuredClone(demoState);
+    }
+    function saveState(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+
+    function pushAudit(action, details){
+      state.audit.unshift({ ts: Date.now(), action, details, user:"Local User" });
+      saveState();
+    }
+    function toast(msg){
+      const el=document.createElement('div'); el.className='toast'; el.role='status'; el.textContent=msg; $('#toasts').appendChild(el);
+      setTimeout(()=>{ el.remove(); }, 2600);
+    }
+
+    // ============== تبويبات وتهيئة ==============
+    const app = $('#app');
+    let activeTab = 'accounts';
+
+    function render(){
+      if(activeTab==='accounts') renderAccounts();
+      else if(activeTab==='journal') renderJournal();
+      else if(activeTab==='centers') renderCenters();
+      else if(activeTab==='reports') renderReports();
+      else if(activeTab==='audit') renderAudit();
+    }
+
+    $$('.tab').forEach(t=>t.addEventListener('click',()=>{
+      $$('.tab').forEach(x=>x.setAttribute('aria-selected','false'));
+      t.setAttribute('aria-selected','true');
+      activeTab = t.dataset.tab; render();
+    }));
+
+    $('#globalSearch').addEventListener('keydown',e=>{ if(e.key==='/' && e.ctrlKey){ e.preventDefault(); e.target.focus(); } });
+    $('#btnClear').addEventListener('click',()=>{ localStorage.removeItem(LS_KEY); state=structuredClone(demoState); render(); toast('تم مسح البيانات وإعادتها للوضع التجريبي'); });
+
+    // Header actions
+    $('#btnSettings').addEventListener('click',openSettings);
+    $('#btnPresets').addEventListener('click',openPresets);
+    $('#btnExport').addEventListener('click',doExport);
+    $('#btnAddCC').addEventListener('click',()=>addCC());
+    $('#btnAddAccount').addEventListener('click',()=>addAccount());
+
+    // ============== أدوات مساعدة ==============
+    function getAccount(id){ return state.accounts.find(a=>a.id===id); }
+    function getCC(id){ return state.costCenters.find(c=>c.id===id); }
+
+    function sum(arr,sel){ return arr.reduce((t,x)=>t+(sel?sel(x):x),0); }
+    function fmt(n){ return Number(n||0).toLocaleString('ar-EG',{maximumFractionDigits:2}); }
+
+    // ============== تبويب الحسابات ==============
+    function renderAccounts(){
+      const q=($('#globalSearch').value||'').trim();
+      const rows = state.accounts.filter(a=>!q || a.id.includes(q) || a.name.includes(q));
+      app.innerHTML = `
+      <section class="card" aria-label="قائمة الحسابات">
+        <div class="toolbar">
+          <span class="hint">عدد الحسابات: ${rows.length}</span>
+        </div>
+        <table>
+          <thead><tr>
+            <th style="width:120px">كود</th><th>اسم الحساب</th><th style="width:120px">النوع</th><th>افتراض مركز/مراكز</th><th style="width:140px">إجراءات</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map(a=>{
+              const d=a.defaultCC||{mode:'none',split:[]};
+              const badges = (d.split||[]).map(s=>`<span class="chip" title="${s.pct||0}%">${getCC(s.ccId)?.name||s.ccId} — ${s.pct||0}%</span>`).join('');
+              const modeBadge = d.mode==='fixed'?'<span class="badge lock">مغلق 🔒</span>':(d.mode==='suggest'?'<span class="badge gold">اقتراح</span>':'<span class="badge">لا يوجد</span>');
+              return `<tr>
+                <td>${a.id}</td>
+                <td>${a.name}</td>
+                <td>${a.type}</td>
+                <td>${modeBadge} ${badges}</td>
+                <td><button class="btn secondary" data-act="setdef" data-id="${a.id}">تعيين افتراضات</button></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </section>`;
+
+      $$('[data-act="setdef"]').forEach(b=>b.addEventListener('click',()=>openDefaults(b.dataset.id)));
+    }
+
+    // ======= نافذة افتراضات الحساب =======
+    const modalDefaults = $('#modal-defaults');
+    const defaultsBody = $('#defaultsSplitBody');
+    let defaultsEditingAccId = null; let defaultsSplitDraft = [];
+
+    function openDefaults(accId){
+      const acc=getAccount(accId); defaultsEditingAccId=accId; $('#defaultsAccountName').textContent=`(${acc.id}) ${acc.name}`;
+      const d=acc.defaultCC||{mode:'none',split:[]};
+      $('#defaultsMode').value=d.mode||'none';
+      defaultsSplitDraft= (d.split||[]).map(x=>({ccId:x.ccId, pct:Number(x.pct)||0}));
+      $('#showInactiveInDefaults').checked=!state.settings.hideInactiveCC;
+      renderDefaultsSplit();
+      modalDefaults.showModal();
+    }
+
+    function renderDefaultsSplit(){
+      defaultsBody.innerHTML = '';
+      const visibleCCs = state.costCenters.filter(c=> c.active || $('#showInactiveInDefaults').checked);
+      defaultsSplitDraft.forEach((row,idx)=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML = `
+          <td>
+            <select data-k="ccId" data-idx="${idx}">
+              ${visibleCCs.map(c=>`<option value="${c.id}" ${c.id===row.ccId?'selected':''}>${c.name} (${c.id}) ${c.active?'':'— مخفي'}</option>`).join('')}
+            </select>
+          </td>
+          <td><input type="number" step="0.01" min="0" max="100" data-k="pct" data-idx="${idx}" value="${row.pct}"></td>
+          <td><button type="button" class="btn ghost" data-del="${idx}">حذف</button></td>`;
+        defaultsBody.appendChild(tr);
+      });
+      const total = sum(defaultsSplitDraft,x=>Number(x.pct)||0);
+      $('#defaultsProgress').style.width=Math.min(100,total)+"%";
+      $('#defaultsHint').textContent = `المجموع = ${total.toFixed(2)}% — يجب أن يساوي 100%`;
+
+      defaultsBody.querySelectorAll('select, input').forEach(el=>{
+        el.addEventListener('input',e=>{
+          const i=Number(e.target.dataset.idx); const k=e.target.dataset.k;
+          defaultsSplitDraft[i][k] = k==='pct'?Number(e.target.value):e.target.value;
+          renderDefaultsSplit();
+        });
+      });
+      defaultsBody.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click',()=>{
+        defaultsSplitDraft.splice(Number(btn.dataset.del),1); renderDefaultsSplit();
+      }));
+    }
+
+    $('#btnAddSplitRow').addEventListener('click',()=>{ defaultsSplitDraft.push({ccId: state.costCenters[0].id, pct:0}); renderDefaultsSplit(); });
+    $('#btnSaveDefaults').addEventListener('click',e=>{
+      e.preventDefault();
+      const mode = $('#defaultsMode').value;
+      const total = sum(defaultsSplitDraft,x=>Number(x.pct)||0);
+      if(mode!=='none' && Math.abs(total-100)>0.001){ toast('المجموع يجب أن يساوي 100%'); return; }
+      const acc=getAccount(defaultsEditingAccId);
+      acc.defaultCC = { mode, split: mode==='none'?[]:defaultsSplitDraft.map(x=>({ccId:x.ccId,pct:Number(x.pct)})) };
+      saveState(); pushAudit('UPDATE_DEFAULTS', `حساب ${acc.id} => ${mode}`); toast('تم حفظ الافتراضات'); modalDefaults.close(); render();
+    });
+
+    // ============== تبويب القيود ==============
+    let currentJEIndex = 0; // نعمل على أول قيد كتجريب
+
+    function renderJournal(){
+      const je = state.journalEntries[currentJEIndex] || { id:"JE-TEMP", date:new Date().toISOString().slice(0,10), memo:"", lines:[] };
+      app.innerHTML = `
+        <section class="card">
+          <div class="grid cols-3">
+            <div><label>رقم القيد</label><input id="jeId" value="${je.id}"></div>
+            <div><label>التاريخ</label><input id="jeDate" type="date" value="${je.date}"></div>
+            <div><label>وصف عام</label><input id="jeMemo" value="${je.memo||''}"></div>
+          </div>
+          <div class="toolbar"><button class="btn secondary" id="btnAddLine">إضافة سطر</button></div>
+          <div class="card" role="region" aria-label="أسطر القيد">
+            <table>
+              <thead>
+                <tr><th style="width:170px">الحساب</th><th>وصف</th><th style="width:120px">مدين</th><th style="width:120px">دائن</th><th>مراكز تكلفة</th><th style="width:140px">إجراءات</th></tr>
+              </thead>
+              <tbody id="linesBody"></tbody>
+            </table>
+          </div>
+          <div class="row" style="justify-content:space-between;margin-top:8px">
+            <div>
+              <span class="badge">المجموع مدين: <b id="totDebit">0</b></span>
+              <span class="badge">المجموع دائن: <b id="totCredit">0</b></span>
+              <span class="badge" id="balBadge"></span>
+            </div>
+            <div class="row">
+              <button class="btn" id="btnSaveJE">حفظ القيد</button>
+              <button class="btn ghost" id="btnResetJE">إعادة ضبط</button>
+            </div>
+          </div>
+        </section>`;
+
+      const body = $('#linesBody');
+      function drawLines(){
+        body.innerHTML='';
+        je.lines.forEach((ln,idx)=>{
+          const acc = getAccount(ln.accountId) || {id:ln.accountId,name:'—'};
+          const dMode = (getAccount(ln.accountId)?.defaultCC?.mode)||'none';
+          const badge = ln.ccAlloc?.source==='custom'?'<span class="badge blue">مخصص</span>':(ln.ccAlloc?.source==='default'?`<span class="badge gold">افتراضي${dMode==='fixed'?' 🔒':''}</span>`:'<span class="badge">—</span>');
+          const tr=document.createElement('tr');
+          tr.innerHTML=`
+            <td>
+              <select data-k="accountId" data-idx="${idx}">
+                ${state.accounts.map(a=>`<option value="${a.id}" ${a.id===ln.accountId?'selected':''}>${a.id} — ${a.name}</option>`).join('')}
+              </select>
+            </td>
+            <td><input data-k="desc" data-idx="${idx}" value="${ln.desc||''}" /></td>
+            <td><input type="number" step="0.01" min="0" data-k="debit" data-idx="${idx}" value="${ln.debit||0}" /></td>
+            <td><input type="number" step="0.01" min="0" data-k="credit" data-idx="${idx}" value="${ln.credit||0}" /></td>
+            <td>${badge} ${(ln.ccAlloc?.split||[]).map(s=>`<span class="chip">${getCC(s.ccId)?.name||s.ccId} — ${(s.pct!=null?s.pct+'%':fmt(s.amt))}</span>`).join('')}</td>
+            <td>
+              <button class="btn secondary" data-act="split" data-idx="${idx}">توزيع</button>
+              <button class="btn ghost" data-act="del" data-idx="${idx}">حذف</button>
+            </td>`;
+          body.appendChild(tr);
+        });
+        body.querySelectorAll('select,input').forEach(el=>el.addEventListener('input',onLineEdit));
+        body.querySelectorAll('[data-act="del"]').forEach(b=>b.addEventListener('click',()=>{ je.lines.splice(Number(b.dataset.idx),1); drawLines(); refreshTotals(); }));
+        body.querySelectorAll('[data-act="split"]').forEach(b=>b.addEventListener('click',()=>openSplit(Number(b.dataset.idx))));
+        refreshTotals();
+      }
+      drawLines();
+
+      $('#btnAddLine').addEventListener('click',()=>{ je.lines.push({ accountId: state.accounts[0].id, desc:'', debit:0, credit:0, ccAlloc:{source:'none', split:[]} }); drawLines(); });
+      $('#btnResetJE').addEventListener('click',()=>{ state.journalEntries[currentJEIndex]=structuredClone(demoState.journalEntries[0]); saveState(); renderJournal(); toast('تمت إعادة ضبط القيد'); });
+      $('#btnSaveJE').addEventListener('click',()=>{
+        je.id=$('#jeId').value; je.date=$('#jeDate').value; je.memo=$('#jeMemo').value;
+        const v = validateJournal(je);
+        if(!v.ok){ toast('لا يمكن الحفظ: '+v.msg); return; }
+        state.journalEntries[currentJEIndex]=je; saveState(); pushAudit('SAVE_JE', je.id+" | "+je.date); toast('تم حفظ القيد');
+      });
+
+      function onLineEdit(e){
+        const i=Number(e.target.dataset.idx); const k=e.target.dataset.k; let v=e.target.value;
+        if(k==='debit'||k==='credit'){ v=Number(v)||0; if(k==='debit' && v>0) je.lines[i].credit=0; if(k==='credit' && v>0) je.lines[i].debit=0; }
+        je.lines[i][k]=v;
+        if(k==='accountId') applyAccountDefaults(je.lines[i]);
+        drawLines();
+      }
+
+      function refreshTotals(){
+        const td = sum(je.lines,x=>Number(x.debit)||0); const tc = sum(je.lines,x=>Number(x.credit)||0);
+        $('#totDebit').textContent=fmt(td); $('#totCredit').textContent=fmt(tc);
+        const ok = Math.abs(td-tc)<0.001; const badge=$('#balBadge');
+        badge.textContent = ok? 'متوازن ✅' : `غير متوازن — الفارق: ${fmt(Math.abs(td-tc))}`;
+        badge.className = 'badge '+(ok?'':'gold');
+      }
+    }
+
+    function applyAccountDefaults(line){
+      const acc=getAccount(line.accountId); const d=acc?.defaultCC||{mode:'none',split:[]};
+      if(d.mode==='none'){ line.ccAlloc={source:'none', split:[]}; return; }
+      line.ccAlloc={ source:'default', split:d.split.map(s=>({ccId:s.ccId, pct:s.pct})) };
+    }
+
+    function validateJournal(je){
+      const td=sum(je.lines,x=>Number(x.debit)||0), tc=sum(je.lines,x=>Number(x.credit)||0);
+      if(Math.abs(td-tc)>0.001) return {ok:false,msg:'القيد غير متوازن'};
+      for(const ln of je.lines){
+        const acc=getAccount(ln.accountId); const needCC=state.settings.enforceCCFor.includes(acc.type);
+        if(needCC){
+          const has = ln.ccAlloc && ln.ccAlloc.split && ln.ccAlloc.split.length>0;
+          if(!has) return {ok:false,msg:`الحساب ${acc.id} (${acc.name}) يتطلب مراكز تكلفة`};
+        }
+        const src = ln.ccAlloc?.source||'none';
+        const accMode = acc.defaultCC?.mode||'none';
+        if(accMode==='fixed' && src==='custom' && !state.settings.allowOverride){
+          return {ok:false,msg:`لا يُسمح بتجاوز افتراض ثابت للحساب ${acc.id}`};
+        }
+        // تحقق التوزيع
+        const mode = ln.ccAlloc?.split?.[0]?.pct!=null?'pct':'amt';
+        if(mode==='pct'){
+          const total = sum(ln.ccAlloc.split,x=>Number(x.pct)||0);
+          if(Math.abs(total-100)>0.001) return {ok:false,msg:`مجموع النسب في أحد الأسطر لا يساوي 100%`};
+        }else{
+          const base = (Number(ln.debit)||0) + (Number(ln.credit)||0);
+          const total = sum(ln.ccAlloc.split,x=>Number(x.amt)||0);
+          if(Math.abs(total-base)>0.001) return {ok:false,msg:`مجموع المبالغ لا يساوي قيمة السطر`};
+        }
+      }
+      return {ok:true};
+    }
+
+    // ======= نافذة توزيع السطر =======
+    const modalSplit = $('#modal-split');
+    let splitJE, splitIndex, splitDraft, splitDraftMode='pct';
+
+    function openSplit(idx){
+      const je = state.journalEntries[currentJEIndex]; const ln=je.lines[idx];
+      splitJE=je; splitIndex=idx; splitDraftMode = (ln.ccAlloc?.split?.[0]?.pct!=null)?'pct':'amt';
+      $('#splitMode').value=splitDraftMode;
+      $('#splitLineTitle').textContent = `${getAccount(ln.accountId)?.id||''} — ${ln.desc||''}`;
+      splitDraft = (ln.ccAlloc?.split||[]).map(s=>({ccId:s.ccId, pct:s.pct, amt:s.amt}));
+      renderSplit(); modalSplit.showModal();
+    }
+
+    $('#splitMode').addEventListener('change',()=>{ splitDraftMode=$('#splitMode').value; renderSplit(); });
+    $('#btnAddSplitLine').addEventListener('click',()=>{ splitDraft.push({ccId:state.costCenters[0].id, pct:0, amt:0}); renderSplit(); });
+
+    function renderSplit(){
+      const body=$('#splitBody'); body.innerHTML='';
+      const visible = state.costCenters.filter(c=> state.settings.hideInactiveCC? c.active : true);
+      $('#splitValueHdr').textContent = splitDraftMode==='pct'? 'النسبة %' : 'المبلغ';
+      splitDraft.forEach((r,i)=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`
+          <td><select data-k="ccId" data-i="${i}">${visible.map(c=>`<option value="${c.id}" ${c.id===r.ccId?'selected':''}>${c.name} (${c.id})</option>`).join('')}</select></td>
+          <td><input type="number" step="0.01" min="0" data-k="${splitDraftMode}" data-i="${i}" value="${splitDraftMode==='pct'?(r.pct||0):(r.amt||0)}"></td>
+          <td><button class="btn ghost" type="button" data-del="${i}">حذف</button></td>`;
+        body.appendChild(tr);
+      });
+      body.querySelectorAll('select,input').forEach(el=>el.addEventListener('input',e=>{
+        const i=Number(e.target.dataset.i); const k=e.target.dataset.k; let v=e.target.value;
+        if(k==='pct'||k==='amt') v=Number(v)||0; splitDraft[i][k]=v; renderSplit();
+      }));
+      body.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{ splitDraft.splice(Number(b.dataset.del),1); renderSplit(); }));
+
+      // progress
+      let total=0, hint='';
+      if(splitDraftMode==='pct'){ total = sum(splitDraft,x=>Number(x.pct)||0); hint=`المجموع ${total.toFixed(2)}% — يجب 100%`; }
+      else{ const ln = splitJE.lines[splitIndex]; const base=(Number(ln.debit)||0)+(Number(ln.credit)||0); total=sum(splitDraft,x=>Number(x.amt)||0); hint=`المجموع ${fmt(total)} — قيمة السطر ${fmt(base)}`; }
+      $('#splitProgress').style.width = Math.min(100, splitDraftMode==='pct'? total : 100*(total/((Number(splitJE.lines[splitIndex].debit)||0)+(Number(splitJE.lines[splitIndex].credit)||0) || 1) ) )+"%";
+      $('#splitHint').textContent=hint;
+    }
+
+    $('#btnSaveSplit').addEventListener('click',e=>{
+      e.preventDefault();
+      // validate
+      if(splitDraftMode==='pct'){
+        const t=sum(splitDraft,x=>Number(x.pct)||0); if(Math.abs(t-100)>0.001){ toast('مجموع النسب يجب أن يساوي 100%'); return; }
+      }else{
+        const ln = splitJE.lines[splitIndex]; const base=(Number(ln.debit)||0)+(Number(ln.credit)||0); const t=sum(splitDraft,x=>Number(x.amt)||0);
+        if(Math.abs(t-base)>0.001){ toast('مجموع المبالغ لا يساوي قيمة السطر'); return; }
+      }
+      // save
+      const je = splitJE; const ln = je.lines[splitIndex];
+      const acc=getAccount(ln.accountId); const accMode=acc.defaultCC?.mode||'none';
+      if(accMode==='fixed' && !state.settings.allowOverride){ toast('لا يمكن تعديل توزيع ثابت لهذا الحساب'); return; }
+      ln.ccAlloc = { source: accMode==='fixed'?'default':'custom', split: splitDraft.map(x=> splitDraftMode==='pct'? ({ccId:x.ccId,pct:Number(x.pct)||0}) : ({ccId:x.ccId,amt:Number(x.amt)||0}) ) };
+      saveState(); pushAudit('SET_LINE_SPLIT', `${je.id} — سطر ${splitIndex+1}`); toast('تم حفظ التوزيع'); modalSplit.close(); renderJournal();
+    });
+
+    // ======= القوالب =======
+    const modalPresets=$('#modal-presets');
+    function openPresets(){ renderPresets(); modalPresets.showModal(); }
+    function renderPresets(){
+      const box=$('#presetsList');
+      box.innerHTML = state.presets.map(p=>`<div class="row" style="justify-content:space-between;border-bottom:1px solid #eee;padding:8px 0">
+        <div><b>${p.name}</b> — ${p.split.map(s=>`${getCC(s.ccId)?.name||s.ccId}:${s.pct||0}%`).join(' | ')}</div>
+        <div>
+          <button class="btn ghost" data-act="apply" data-id="${p.id}">تطبيق على التوزيع المفتوح</button>
+          <button class="btn danger" data-act="del" data-id="${p.id}">حذف</button>
+        </div>
+      </div>`).join('') || '<div class="hint">لا توجد قوالب</div>';
+      box.querySelectorAll('[data-act="del"]').forEach(b=>b.addEventListener('click',()=>{ state.presets=state.presets.filter(x=>x.id!==b.dataset.id); saveState(); renderPresets(); toast('تم حذف القالب'); }));
+      box.querySelectorAll('[data-act="apply"]').forEach(b=>b.addEventListener('click',()=>{
+        if(!modalSplit.open){ toast('افتح نافذة توزيع السطر أولاً'); return; }
+        const p=state.presets.find(x=>x.id===b.dataset.id); if(!p) return; splitDraft = p.split.map(s=>({ccId:s.ccId,pct:s.pct})); splitDraftMode='pct'; $('#splitMode').value='pct'; renderSplit(); toast('تم تطبيق القالب');
+      }));
+    }
+    $('#btnPresetFromCurrent').addEventListener('click',()=>{
+      if(!modalSplit.open){ toast('افتح نافذة توزيع السطر ثم احفظ كقالب'); return; }
+      const name=$('#presetName').value.trim(); if(!name){ toast('اكتب اسمًا للقالب'); return; }
+      const id='P-'+Math.random().toString(36).slice(2,8).toUpperCase();
+      const split = splitDraftMode==='pct' ? splitDraft.map(x=>({ccId:x.ccId,pct:Number(x.pct)||0})) : null;
+      if(!split){ toast('لا يُدعم حفظ قوالب بالمبالغ — استخدم النِسَب'); return; }
+      state.presets.push({id,name,split}); saveState(); pushAudit('SAVE_PRESET', name); toast('تم حفظ القالب'); renderPresets();
+    });
+    $('#btnApplyPreset').addEventListener('click',openPresets);
+
+    // ======= إعدادات =======
+    const modalSettings=$('#modal-settings');
+    function openSettings(){
+      $('#enfExp').checked = state.settings.enforceCCFor.includes('expense');
+      $('#enfRev').checked = state.settings.enforceCCFor.includes('revenue');
+      $('#allowOverride').checked = state.settings.allowOverride;
+      $('#hideInactiveCC').checked = state.settings.hideInactiveCC;
+      modalSettings.showModal();
+    }
+    $('#btnSaveSettings').addEventListener('click',e=>{
+      e.preventDefault();
+      const enf=[]; if($('#enfExp').checked) enf.push('expense'); if($('#enfRev').checked) enf.push('revenue');
+      state.settings.enforceCCFor=enf; state.settings.allowOverride=$('#allowOverride').checked; state.settings.hideInactiveCC=$('#hideInactiveCC').checked; saveState(); pushAudit('UPDATE_SETTINGS', JSON.stringify(state.settings)); toast('تم حفظ الإعدادات'); modalSettings.close();
+    });
+
+    // ============== تبويب المراكز ==============
+    function renderCenters(){
+      const q=($('#globalSearch').value||'').trim();
+      const rows = state.costCenters.filter(c=>!q || c.id.includes(q) || c.name.includes(q) || (c.group||'').includes(q));
+      app.innerHTML = `
+      <section class="card">
+        <div class="toolbar">
+          <label><input type="checkbox" id="toggleInactive" ${state.settings.hideInactiveCC?'checked':''}/> إخفاء غير النشطة</label>
+        </div>
+        <table>
+          <thead><tr><th style="width:120px">الكود</th><th>الاسم</th><th style="width:140px">الحالة</th><th>الفئة/المستوى</th><th style="width:140px">إجراءات</th></tr></thead>
+          <tbody>
+            ${rows.filter(c=> state.settings.hideInactiveCC? c.active : true ).map(c=>`
+              <tr>
+                <td>${c.id}</td>
+                <td>${c.name}</td>
+                <td>${c.active?'<span class="badge blue">نشط</span>':'<span class="badge">مخفي</span>'}</td>
+                <td>${c.group||''}</td>
+                <td>
+                  <button class="btn secondary" data-act="edit" data-id="${c.id}">تعديل</button>
+                  <button class="btn ghost" data-act="toggle" data-id="${c.id}">${c.active?'إخفاء':'إظهار'}</button>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </section>`;
+      $('#toggleInactive').addEventListener('change',e=>{ state.settings.hideInactiveCC=e.target.checked; saveState(); renderCenters(); });
+      $$('[data-act="toggle"]').forEach(b=>b.addEventListener('click',()=>{ const c=getCC(b.dataset.id); c.active=!c.active; saveState(); pushAudit('TOGGLE_CC', `${c.id} => ${c.active?'نشط':'مخفي'}`); renderCenters(); }));
+      $$('[data-act="edit"]').forEach(b=>b.addEventListener('click',()=>editCC(b.dataset.id)));
+    }
+
+    function addCC(){
+      const id = prompt('كود المركز؟ مثال CC-500'); if(!id) return;
+      const name = prompt('اسم المركز؟'); if(!name) return;
+      state.costCenters.push({id,name,active:true,group:'عام'}); saveState(); pushAudit('ADD_CC', id+" - "+name); toast('تمت إضافة مركز تكلفة'); if(activeTab!=='centers'){ activeTab='centers'; $$('.tab').forEach(t=>t.dataset.tab==='centers'&&t.click()); } else renderCenters();
+    }
+    function editCC(id){
+      const c=getCC(id); const name=prompt('اسم المركز', c.name); if(!name) return; const group=prompt('الفئة/المستوى', c.group||''); c.name=name; c.group=group; saveState(); pushAudit('EDIT_CC', id); toast('تم التعديل'); renderCenters();
+    }
+
+    // ============== تبويب التقارير ==============
+    function renderReports(){
+      // تجميع مبسط حسب مركز التكلفة عبر كل القيود
+      const rows=[];
+      for(const je of state.journalEntries){
+        for(const ln of je.lines){
+          const val=(Number(ln.debit)||0)-(Number(ln.credit)||0); // موجب مصروف، سالب إيراد
+          if(ln.ccAlloc && ln.ccAlloc.split && ln.ccAlloc.split.length){
+            if(ln.ccAlloc.split[0].pct!=null){
+              ln.ccAlloc.split.forEach(s=> rows.push({ date:je.date, acc:ln.accountId, memo:ln.desc||'', cc:s.ccId, amt: val*(s.pct/100) }));
+            }else{
+              const base=(Number(ln.debit)||0)+(Number(ln.credit)||0); // يوزع على أساس القيمة المطلقة
+              const sign = (Number(ln.debit)||0) ? 1 : -1;
+              ln.ccAlloc.split.forEach(s=> rows.push({ date:je.date, acc:ln.accountId, memo:ln.desc||'', cc:s.ccId, amt: sign*(Number(s.amt)||0) }));
+            }
+          }
+        }
+      }
+      const byCC={}; rows.forEach(r=>{ byCC[r.cc]=(byCC[r.cc]||0)+r.amt; });
+      const summary = Object.entries(byCC).map(([cc,amt])=>({cc, amt}));
+
+      app.innerHTML = `
+      <section class="grid cols-2">
+        <div class="card">
+          <h3 style="margin-top:0">ملخص حسب مركز التكلفة</h3>
+          ${summary.map(s=>`<div class="row" style="justify-content:space-between;border-bottom:1px dashed #e5e7eb;padding:6px 0">
+            <div><b>${getCC(s.cc)?.name||s.cc}</b></div>
+            <div>${fmt(s.amt)}</div>
+          </div>`).join('')||'<div class="hint">لا توجد بيانات</div>'}
+        </div>
+        <div class="card">
+          <div class="toolbar">
+            <button class="btn ghost" id="btnExportCSV">تصدير CSV</button>
+            <button class="btn ghost" id="btnExportJSON">تصدير JSON</button>
+          </div>
+          <table>
+            <thead><tr><th style="width:120px">التاريخ</th><th>الحساب</th><th>الوصف</th><th>المركز</th><th style="width:140px">المبلغ</th></tr></thead>
+            <tbody>
+              ${rows.map(r=>`<tr><td>${r.date}</td><td>${r.acc}</td><td>${r.memo}</td><td>${getCC(r.cc)?.name||r.cc}</td><td>${fmt(r.amt)}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </section>`;
+      $('#btnExportCSV').addEventListener('click',()=>downloadText('report.csv', toCSV(rows)));
+      $('#btnExportJSON').addEventListener('click',()=>downloadText('report.json', JSON.stringify(rows,null,2)));
+    }
+
+    function toCSV(arr){
+      if(!arr.length) return '';
+      const cols = Object.keys(arr[0]);
+      const lines = [cols.join(',')].concat(arr.map(o=>cols.map(k=>JSON.stringify(o[k]??'')).join(',')));
+      return lines.join('\n');
+    }
+    function downloadText(filename, text){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:'text/plain'})); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); toast('تم إنشاء ملف '+filename); }
+
+    function doExport(){ downloadText('state.json', JSON.stringify(state,null,2)); }
+
+    // ============== تبويب السجل ==============
+    function renderAudit(){
+      app.innerHTML = `
+        <section class="card">
+          <table>
+            <thead><tr><th style="width:160px">التاريخ/الوقت</th><th style="width:220px">المستخدم</th><th>الحدث</th><th>تفاصيل</th></tr></thead>
+            <tbody>
+              ${state.audit.map(a=>`<tr><td>${new Date(a.ts).toLocaleString('ar-EG')}</td><td>${a.user||'Local User'}</td><td>${a.action}</td><td>${a.details||''}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </section>`;
+    }
+
+    // ============== إنشاء حساب سريع ==============
+    function addAccount(){
+      const id=prompt('كود الحساب؟ مثال 6300'); if(!id) return; const name=prompt('اسم الحساب؟'); if(!name) return; const type=prompt('النوع؟ expense / revenue / balance','expense');
+      state.accounts.push({id,name,type,defaultCC:{mode:'none',split:[]}}); saveState(); pushAudit('ADD_ACCOUNT', id+" - "+name); toast('تمت إضافة حساب'); if(activeTab!=='accounts'){ activeTab='accounts'; $$('.tab').forEach(t=>t.dataset.tab==='accounts'&&t.click()); } else renderAccounts();
+    }
+
+    // ============== بدء التشغيل ==============
+    render();
+  </script>
+</body>
+</html>

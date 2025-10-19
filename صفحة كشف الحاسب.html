@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>كشف الحساب — نموذج تفاعلي</title>
+<style>
+  :root{
+    --bg:#ffffff;
+    --fg:#0f172a; /* slate-900 */
+    --muted:#64748b; /* slate-500 */
+    --line:#e2e8f0; /* slate-200 */
+    --soft:#f8fafc; /* slate-50 */
+    --blue:#1e88e5; /* أزرق جميل غير غامق جدًا */
+    --blue-weak:#e3f2fd;
+    --badge:#eef2ff;
+    --shadow:0 6px 20px rgba(2,8,23,.08);
+  }
+  html,body{background:var(--bg);color:var(--fg);font-family: system-ui, "Segoe UI", Tahoma, sans-serif;}
+  *{box-sizing:border-box}
+
+  /* رأس ثابت */
+  header{
+    position:sticky; top:0; z-index:50;
+    background:var(--bg); border-bottom:1px solid var(--line);
+    box-shadow:0 2px 8px rgba(0,0,0,.04);
+  }
+  .wrap{max-width:1200px; margin:0 auto; padding:12px 16px}
+  .head{
+    display:flex; align-items:center; gap:12px; justify-content:space-between;
+  }
+  .brand{display:flex; align-items:center; gap:10px}
+  .logo{width:12px; height:12px; border-radius:50%; background:var(--blue); box-shadow:0 0 0 6px var(--blue-weak);}
+  h1{margin:0; font-size:18px}
+  .today{font-size:13px; color:var(--muted)}
+  .search{
+    flex:1; max-width:420px; display:flex; gap:8px; align-items:center; margin-inline-start:12px;
+    background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 12px;
+  }
+  .search input{border:0; outline:0; width:100%; font-size:14px}
+  .icon{width:18px; height:18px; display:inline-block; border-radius:4px;}
+  .icon.blue{background:var(--blue)}
+
+  /* شريط الفلاتر */
+  .filters{display:flex; flex-wrap:wrap; gap:10px; align-items:end; padding:12px 0}
+  .filters .field{display:flex; flex-direction:column; gap:6px}
+  label{font-size:12px; color:var(--muted)}
+  input[type="date"], select{
+    border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:14px; background:#fff; min-width:160px
+  }
+  .btn{border:1px solid var(--blue); color:#fff; background:var(--blue); padding:8px 12px; border-radius:10px; cursor:pointer; font-size:14px}
+  .btn.ghost{background:#fff; color:var(--blue)}
+  .btn.light{background:var(--blue-weak); color:var(--blue); border-color:var(--blue-weak)}
+  .btn.small{padding:6px 10px; font-size:12px; border-radius:8px}
+
+  .bar{display:flex; align-items:center; gap:8px; justify-content:space-between; margin:10px 0}
+  .meta{font-size:13px; color:var(--muted)}
+  .actions{display:flex; gap:8px; flex-wrap:wrap}
+
+  /* الجدول */
+  .table-wrap{border:1px solid var(--line); border-radius:14px; overflow:hidden; background:#fff}
+  table{width:100%; border-collapse:separate; border-spacing:0}
+  thead th{position:sticky; top:66px; background:#f6f9ff; color:#111827; font-weight:600; font-size:13px; border-bottom:1px solid var(--line); padding:10px; text-align:right; cursor:pointer}
+  tbody td{border-bottom:1px solid var(--line); padding:10px; font-size:14px; vertical-align:top}
+  tbody tr:nth-child(odd){background:var(--soft)}
+  tbody tr:hover{background:#f1f5ff}
+
+  /* عمود الحساب المقابل */
+  .ellipsis{max-width:380px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .badge{display:inline-block; background:var(--badge); color:#3730a3; border:1px solid #e0e7ff; border-radius:999px; padding:2px 8px; font-size:11px; margin-inline-start:6px}
+  .badge[data-type="customer"]{background:#ecfeff; color:#155e75; border-color:#cffafe}
+  .badge[data-type="supplier"]{background:#fff7ed; color:#9a3412; border-color:#ffedd5}
+  .badge[data-type="bank"]{background:#eff6ff; color:#1e3a8a; border-color:#dbeafe}
+  .badge[data-type="gl"]{background:#f1f5f9; color:#0f172a; border-color:#e2e8f0}
+
+  /* Tooltip/Popover */
+  .popover{
+    position:absolute; background:#fff; border:1px solid var(--line); box-shadow:var(--shadow);
+    border-radius:12px; padding:10px; min-width:260px; max-width:340px; display:none
+  }
+  .popover.show{display:block}
+  .popover .title{font-size:13px; color:var(--muted); margin-bottom:8px}
+  .popover .list{max-height:220px; overflow:auto}
+  .popover .row{display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px dashed #eef2f7}
+  .popover .row:last-child{border-bottom:0}
+  .popover .foot{display:flex; justify-content:flex-end; gap:8px; margin-top:8px}
+  .popover .link{color:var(--blue); font-size:12px; cursor:pointer}
+
+  /* بطاقات للجوال */
+  .cards{display:none; gap:12px}
+  .card{background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.03); padding:10px}
+  .card h3{margin:0 0 6px; font-size:15px}
+  .kv{display:grid; grid-template-columns:120px 1fr; gap:6px; font-size:13px}
+  .kv div{padding:2px 0; border-bottom:1px dashed #eef2f7}
+  .kv div:last-child{border-bottom:0}
+  .counterline{margin-top:8px; font-size:13px}
+
+  /* ترويسة المجاميع */
+  .footer{
+    margin:10px 0; background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px; display:flex; gap:20px; justify-content:flex-start; flex-wrap:wrap
+  }
+  .pill{background:var(--blue-weak); color:#0b3c7a; padding:6px 10px; border-radius:999px; font-size:13px}
+
+  /* استجابة */
+  @media (max-width: 800px){
+    thead{display:none}
+    table{display:none}
+    .cards{display:grid}
+    .filters .field{min-width:140px}
+    .search{max-width:none}
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap head">
+      <div class="brand">
+        <span class="logo" aria-hidden="true"></span>
+        <h1>كشف الحساب</h1>
+      </div>
+      <div class="today" id="today"></div>
+      <div class="search" title="ابحث في الوصف والحساب المقابل">
+        <span class="icon blue" aria-hidden="true"></span>
+        <input id="q" placeholder="بحث عام…" />
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap" style="padding-top:12px">
+    <section class="filters" aria-label="فلاتر">
+      <div class="field">
+        <label for="from">من تاريخ</label>
+        <input type="date" id="from" />
+      </div>
+      <div class="field">
+        <label for="to">إلى تاريخ</label>
+        <input type="date" id="to" />
+      </div>
+      <div class="field">
+        <label for="type">نوع الحساب المقابل</label>
+        <select id="type">
+          <option value="">الكل</option>
+          <option value="customer">عميل</option>
+          <option value="supplier">مورد</option>
+          <option value="bank">بنك</option>
+          <option value="gl">GL</option>
+        </select>
+      </div>
+      <div class="actions">
+        <button class="btn light" id="quick-today">اليوم</button>
+        <button class="btn light" id="quick-this-month">هذا الشهر</button>
+        <button class="btn light" id="quick-last-month">الشهر الماضي</button>
+        <button class="btn ghost" id="reset">إعادة تعيين</button>
+      </div>
+    </section>
+
+    <div class="bar">
+      <div class="meta"><span id="count">0</span> نتيجة</div>
+      <div class="actions">
+        <button class="btn small" id="export">تصدير CSV</button>
+      </div>
+    </div>
+
+    <section class="table-wrap" aria-label="الجدول">
+      <table id="grid">
+        <thead>
+          <tr>
+            <th data-sort="date">التاريخ</th>
+            <th data-sort="jvNo">رقم القيد</th>
+            <th data-sort="description">الوصف</th>
+            <th data-sort="debit">مدين</th>
+            <th data-sort="credit">دائن</th>
+            <th data-sort="balanceAfter">الرصيد</th>
+            <th data-sort="counter">الحساب المقابل</th>
+          </tr>
+        </thead>
+        <tbody id="body"></tbody>
+      </table>
+
+      <!-- عرض البطاقات للجوال -->
+      <div class="cards" id="cards"></div>
+    </section>
+
+    <section class="footer" aria-label="مجاميع">
+      <div class="pill">مجموع المدين: <b id="sum-debit">0</b></div>
+      <div class="pill">مجموع الدائن: <b id="sum-credit">0</b></div>
+      <div class="pill">الرصيد النهائي: <b id="sum-balance">0</b></div>
+    </section>
+  </main>
+
+  <!-- Popover للحسابات المقابلة المتعددة -->
+  <div class="popover" id="popover" role="dialog" aria-modal="false">
+    <div class="title">الحسابات المقابلة</div>
+    <div class="list" id="pop-list"></div>
+    <div class="foot">
+      <span class="link" id="drill">عرض القيد</span>
+    </div>
+  </div>
+
+<script>
+(function(){
+  // ======= أدوات مساعدة =======
+  const $ = sel => document.querySelector(sel);
+  const $$ = sel => Array.from(document.querySelectorAll(sel));
+  const formatNumber = n => (Number(n)||0).toLocaleString('ar-SA');
+  const parseDate = s => new Date(s + 'T00:00:00');
+  const todayStr = new Date().toISOString().slice(0,10);
+  $('#today').textContent = new Date().toLocaleDateString('ar-SA', { year:'numeric', month:'long', day:'numeric' });
+
+  // ======= بيانات Mock =======
+  const data = [
+    {date:"2025-09-01", jvNo:"JV-2025-00123", description:"تحويل إلى عميل خالد", debit:0, credit:1500, balanceAfter:23500, counterparts:[{name:"عميل: خالد", type:"customer", amount:1500}]},
+    {date:"2025-09-02", jvNo:"JV-2025-00124", description:"سداد مورد شركة الإبداع", debit:2500, credit:0, balanceAfter:21000, counterparts:[{name:"مورد: شركة الإبداع للتوريدات", type:"supplier", amount:2500}]},
+    {date:"2025-09-03", jvNo:"JV-2025-00125", description:"رسوم خدمات بنكية طويلة جدًا لاختبار القصّ والهوفر", debit:0, credit:75, balanceAfter:20925, counterparts:[{name:"بنك: الراجحي - فرع العليا - حساب الشركات", type:"bank", amount:75}]},
+    {date:"2025-09-04", jvNo:"JV-2025-00126", description:"قيد متعدد: عميل + صندوق + مصروف + ضريبة", debit:0, credit:0, balanceAfter:20925, counterparts:[
+      {name:"عميل: المتحد الدولية للتجارة", type:"customer", amount:6000},
+      {name:"صندوق: رئيسي", type:"gl", amount:2000},
+      {name:"مصروف: نقل وشحن طويل الاسم جدًا لاختبار القصّ", type:"gl", amount:3500},
+      {name:"ضريبة مخرجات", type:"gl", amount:500}
+    ]},
+    {date:"2025-08-28", jvNo:"JV-2025-00110", description:"إيراد مبيعات نقدي", debit:0, credit:4200, balanceAfter:18000, counterparts:[{name:"صندوق: الفرع الغربي", type:"gl", amount:4200}]},
+    {date:"2025-10-01", jvNo:"JV-2025-00200", description:"سداد عميل: مؤسسة الروّاد", debit:0, credit:3000, balanceAfter:25000, counterparts:[{name:"عميل: مؤسسة الروّاد", type:"customer", amount:3000}]},
+    {date:"2025-10-02", jvNo:"JV-2025-00201", description:"قيد مركب: عميل + بنك + خصم نقدي", debit:0, credit:0, balanceAfter:25000, counterparts:[
+      {name:"عميل: خالد بن سالم", type:"customer", amount:5000},
+      {name:"بنك: الأهلي التجاري - حساب أساسي", type:"bank", amount:4900},
+      {name:"خصم نقدي", type:"gl", amount:100}
+    ]},
+    {date:"2025-07-15", jvNo:"JV-2025-00077", description:"مصروف صيانة", debit:900, credit:0, balanceAfter:14500, counterparts:[{name:"GL: مصروف صيانة", type:"gl", amount:900}]}
+  ];
+
+  // ======= حالة واجهة =======
+  let state = {
+    sortKey: 'date',
+    sortDir: 'desc',
+    q: '',
+    from: '',
+    to: '',
+    type: '',
+    pop:{open:false, jvNo:null}
+  };
+
+  // ======= منطق الفلترة والبحث =======
+  const inRange = (d) => {
+    if(state.from && d < state.from) return false;
+    if(state.to && d > state.to) return false;
+    return true;
+  };
+  const matchType = (row)=>{
+    if(!state.type) return true;
+    return row.counterparts.some(cp=>cp.type===state.type);
+  };
+  const matchQuery = (row)=>{
+    if(!state.q) return true;
+    const hay = (row.description + ' ' + row.counterparts.map(c=>c.name).join(' ')).toLowerCase();
+    return hay.includes(state.q.toLowerCase());
+  };
+
+  const filtered = ()=>{
+    return data.filter(r=> inRange(r.date) && matchType(r) && matchQuery(r));
+  };
+
+  // ======= منطق الفرز =======
+  const firstCounterName = (r)=> r.counterparts[0]?.name || '';
+  const sorters = {
+    date:(a,b)=> a.date.localeCompare(b.date),
+    jvNo:(a,b)=> a.jvNo.localeCompare(b.jvNo, 'ar'),
+    description:(a,b)=> a.description.localeCompare(b.description, 'ar'),
+    debit:(a,b)=> (a.debit||0) - (b.debit||0),
+    credit:(a,b)=> (a.credit||0) - (b.credit||0),
+    balanceAfter:(a,b)=> (a.balanceAfter||0) - (b.balanceAfter||0),
+    counter:(a,b)=> {
+      const an = a.counterparts.length===1 ? firstCounterName(a) : (firstCounterName(a) || 'متعدد');
+      const bn = b.counterparts.length===1 ? firstCounterName(b) : (firstCounterName(b) || 'متعدد');
+      return an.localeCompare(bn, 'ar');
+    }
+  };
+
+  function sortRows(arr){
+    const fn = sorters[state.sortKey] || sorters.date;
+    const sorted = [...arr].sort(fn);
+    if(state.sortDir==='desc') sorted.reverse();
+    return sorted;
+  }
+
+  // ======= رسم الجدول =======
+  const bodyEl = $('#body');
+  const cardsEl = $('#cards');
+  const sumD = $('#sum-debit');
+  const sumC = $('#sum-credit');
+  const sumB = $('#sum-balance');
+  const countEl = $('#count');
+
+  function badge(type){
+    const map = {customer:'عميل', supplier:'مورد', bank:'بنك', gl:'GL'};
+    return `<span class="badge" data-type="${type}">${map[type]||'GL'}</span>`;
+  }
+
+  function renderCounterCell(row){
+    const cps = row.counterparts;
+    if(cps.length<=1){
+      const cp = cps[0];
+      return `<div class="ellipsis" title="${cp ? cp.name : ''}">${cp?cp.name:''} ${cp?badge(cp.type):''}</div>`;
+    }
+    // متعدد
+    const firstTwo = cps.slice(0,2).map(c=>c.name.split(':')[0].trim()+ ' ' + (c.name.split(':')[1]||'')).join('، ');
+    const label = `متعدد: ${firstTwo}${cps.length>2?'…':''}`;
+    return `<div class="ellipsis multi" data-jv="${row.jvNo}" title="انقر لعرض التفاصيل">${label}</div>`;
+  }
+
+  function render(){
+    closePopover();
+    const rows = sortRows(filtered());
+    countEl.textContent = rows.length;
+
+    // مجاميع
+    const sD = rows.reduce((a,r)=>a+(Number(r.debit)||0),0);
+    const sC = rows.reduce((a,r)=>a+(Number(r.credit)||0),0);
+    const lastBal = rows.length? rows[rows.length-1].balanceAfter : 0;
+    sumD.textContent = formatNumber(sD);
+    sumC.textContent = formatNumber(sC);
+    sumB.textContent = formatNumber(lastBal);
+
+    // جدول
+    bodyEl.innerHTML = rows.map(r=>`
+      <tr>
+        <td>${r.date}</td>
+        <td>${r.jvNo}</td>
+        <td class="ellipsis" title="${r.description}">${r.description}</td>
+        <td>${formatNumber(r.debit)}</td>
+        <td>${formatNumber(r.credit)}</td>
+        <td>${formatNumber(r.balanceAfter)}</td>
+        <td>${renderCounterCell(r)}</td>
+      </tr>
+    `).join('');
+
+    // بطاقات للجوال
+    cardsEl.innerHTML = rows.map(r=>{
+      const cps = r.counterparts;
+      const counterLine = cps.length<=1
+        ? `${cps[0]?.name||''}`
+        : `متعدد: ${cps.slice(0,2).map(c=>c.name).join('، ')}${cps.length>2?'…':''}`;
+      return `
+        <div class="card" data-jv="${r.jvNo}">
+          <h3>${r.jvNo}</h3>
+          <div class="kv">
+            <div>التاريخ</div><div>${r.date}</div>
+            <div>الوصف</div><div>${r.description}</div>
+            <div>مدين</div><div>${formatNumber(r.debit)}</div>
+            <div>دائن</div><div>${formatNumber(r.credit)}</div>
+            <div>الرصيد</div><div>${formatNumber(r.balanceAfter)}</div>
+          </div>
+          <div class="counterline"><b>الحساب المقابل:</b> <span class="ellipsis" title="${counterLine}">${counterLine}</span></div>
+        </div>`
+    }).join('');
+
+    // ربط أحداث الpopover للمتعدد
+    $$('#body .multi').forEach(el=>{
+      el.addEventListener('click', (e)=>{
+        const jv = el.getAttribute('data-jv');
+        openPopoverFor(jv, el);
+      })
+    });
+  }
+
+  // ======= Popover =======
+  const pop = $('#popover');
+  const popList = $('#pop-list');
+  const drillBtn = $('#drill');
+  let anchorEl = null;
+
+  function openPopoverFor(jvNo, anchor){
+    const row = data.find(r=>r.jvNo===jvNo);
+    if(!row) return;
+    state.pop = {open:true, jvNo};
+    anchorEl = anchor;
+    popList.innerHTML = row.counterparts.map(c=>
+      `<div class="row"><span>${c.name}</span><span>${formatNumber(c.amount)}</span></div>`
+    ).join('');
+    pop.classList.add('show');
+    // تموضع بسيط بجانب الخلية
+    const rect = anchor.getBoundingClientRect();
+    const pr = document.body.getBoundingClientRect();
+    pop.style.top = `${window.scrollY + rect.top + rect.height + 8}px`;
+    pop.style.right = `${(pr.right - rect.right) + 0}px`;
+  }
+  function closePopover(){
+    state.pop = {open:false, jvNo:null};
+    pop.classList.remove('show');
+  }
+  drillBtn.addEventListener('click', ()=>{
+    if(state.pop.jvNo){
+      console.log('عرض القيد:', state.pop.jvNo);
+      closePopover();
+    }
+  });
+  document.addEventListener('click', (e)=>{
+    if(state.pop.open && !pop.contains(e.target) && (!anchorEl || !anchorEl.contains(e.target))){
+      closePopover();
+    }
+  });
+
+  // ======= أحداث الفرز =======
+  $$('#grid thead th').forEach(th=>{
+    th.addEventListener('click', ()=>{
+      const key = th.getAttribute('data-sort');
+      if(state.sortKey===key){
+        state.sortDir = state.sortDir==='asc'?'desc':'asc';
+      } else {
+        state.sortKey = key; state.sortDir = 'asc';
+      }
+      render();
+    })
+  });
+
+  // ======= البحث (debounced) =======
+  let t;
+  $('#q').addEventListener('input', (e)=>{
+    clearTimeout(t);
+    t = setTimeout(()=>{ state.q = e.target.value.trim(); render(); }, 250);
+  });
+
+  // ======= فلاتر التاريخ والنوع =======
+  $('#from').addEventListener('change', e=>{ state.from = e.target.value; render(); });
+  $('#to').addEventListener('change', e=>{ state.to = e.target.value; render(); });
+  $('#type').addEventListener('change', e=>{ state.type = e.target.value; render(); });
+
+  // أزرار سريعة
+  function setThisMonth(){
+    const d = new Date();
+    const first = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
+    const last = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
+    $('#from').value = state.from = first;
+    $('#to').value = state.to = last;
+    render();
+  }
+  function setLastMonth(){
+    const d = new Date();
+    const first = new Date(d.getFullYear(), d.getMonth()-1, 1).toISOString().slice(0,10);
+    const last = new Date(d.getFullYear(), d.getMonth(), 0).toISOString().slice(0,10);
+    $('#from').value = state.from = first;
+    $('#to').value = state.to = last;
+    render();
+  }
+  function setToday(){
+    $('#from').value = state.from = todayStr;
+    $('#to').value = state.to = todayStr;
+    render();
+  }
+  $('#quick-this-month').addEventListener('click', setThisMonth);
+  $('#quick-last-month').addEventListener('click', setLastMonth);
+  $('#quick-today').addEventListener('click', setToday);
+
+  $('#reset').addEventListener('click', ()=>{
+    state = {sortKey:'date', sortDir:'desc', q:'', from:'', to:'', type:'', pop:{open:false, jvNo:null}};
+    $('#q').value=''; $('#from').value=''; $('#to').value=''; $('#type').value='';
+    render();
+  });
+
+  // ======= تصدير CSV =======
+  function toCSV(rows){
+    const headers = ['Date','JVNo','Description','Debit','Credit','BalanceAfter','CounterAccount','RelatedAccountsFull'];
+    const lines = [headers.join(',')];
+    rows.forEach(r=>{
+      const isMulti = r.counterparts.length>1;
+      const counter = isMulti ? 'Multiple' : (r.counterparts[0]?.name||'');
+      const full = r.counterparts.map(c=>`${c.name} (${c.type})`).join('; ');
+      const vals = [r.date, r.jvNo, r.description.replaceAll(',', '،'), r.debit, r.credit, r.balanceAfter, counter.replaceAll(',', '،'), isMulti? full.replaceAll(',', '،'): '' ];
+      lines.push(vals.map(v=>`"${v}"`).join(','));
+    });
+    return lines.join('\n');
+  }
+  $('#export').addEventListener('click', ()=>{
+    const rows = sortRows(filtered());
+    const csv = toCSV(rows);
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'account-statement.csv'; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // ======= تهيئة =======
+  render();
+})();
+</script>
+</body>
+</html>

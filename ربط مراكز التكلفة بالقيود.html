@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>واجهات مراكز التكلفة — صفحة واحدة</title>
+  <style>
+    /* =====================
+       Theme & Resets
+       ===================== */
+    :root{
+      --blue:#1877f2;          /* أزرار زرقاء مثل فيسبوك */
+      --blue-600:#165fd1;
+      --bg:#ffffff;            /* خلفية بيضاء */
+      --ink:#0f172a;           /* رمادي غامق مقروء */
+      --muted:#64748b;
+      --border:#e2e8f0;
+      --success:#0a8754;
+      --warn:#b45309;
+      --danger:#b91c1c;
+      --violet:#7c3aed;
+      --row:#f8fafc;
+    }
+    [data-theme="dark"]{
+      --bg:#0b1220;
+      --ink:#e5e7eb;
+      --muted:#9aa4b2;
+      --border:#1f2937;
+      --row:#0f172a;
+    }
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Noto Sans Arabic",Tahoma,Arial; background:var(--bg); color:var(--ink)}
+    a{color:var(--blue);text-decoration:none}
+    .container{max-width:1200px;margin:0 auto;padding:1rem}
+
+    /* Header */
+    header.site{
+      position:sticky;top:0;z-index:50;background:var(--bg);
+      border-bottom:1px solid var(--border);
+      backdrop-filter:saturate(180%) blur(6px);
+    }
+    .site__bar{display:flex;gap:1rem;align-items:center;justify-content:space-between;padding:.75rem 1rem}
+    .brand{display:flex;align-items:center;gap:.75rem}
+    .brand .logo{width:28px;height:28px;border-radius:8px;background:var(--blue)}
+    .brand h1{font-size:1rem;margin:0}
+
+    /* Tabs */
+    .tabs{display:flex;gap:.5rem;flex-wrap:wrap}
+    .tab{padding:.5rem .9rem;border:1px solid var(--border);border-radius:.6rem;background:#fff0;cursor:pointer}
+    .tab[aria-selected="true"]{background:var(--blue);color:#fff;border-color:var(--blue)}
+    [data-theme="dark"] .tab{background:transparent}
+
+    /* Section cards */
+    section{margin-top:1rem}
+    .card{border:1px solid var(--border);border-radius:1rem;overflow:hidden;background:var(--bg)}
+    .card__head{display:flex;align-items:center;justify-content:space-between;padding:1rem;border-bottom:1px solid var(--border)}
+    .card__body{padding:1rem}
+
+    /* Buttons */
+    .btn{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .9rem;border:1px solid var(--border);border-radius:.7rem;background:#fff;color:var(--ink);cursor:pointer}
+    .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+    .btn.primary:active{transform:translateY(1px)}
+    .btn.ghost{background:transparent}
+    .btn.danger{background:#fee2e2;border-color:#fecaca;color:#7f1d1d}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+
+    /* Inputs */
+    .input,.select,.toggle{border:1px solid var(--border);border-radius:.6rem;padding:.45rem .6rem;background:var(--bg);color:var(--ink)}
+    .row{display:flex;gap:.75rem;flex-wrap:wrap}
+
+    /* Tables */
+    .table{width:100%;border-collapse:separate;border-spacing:0}
+    .table th,.table td{padding:.6rem;border-bottom:1px solid var(--border);vertical-align:middle}
+    .table thead th{background:var(--row);font-weight:600}
+    .table tr:hover td{background-color:rgba(24,119,242,.05)}
+    .scroll-x{overflow-x:auto}
+
+    /* Badges & tags */
+    .cc-badge{font-size:.8rem;padding:.15rem .4rem;border-radius:.4rem;border:1px solid transparent}
+    .cc-badge.active{background:#e6fff2;color:var(--success)}
+    .cc-badge.inactive{background:#fff3e6;color:#b45309}
+    .tag{font-size:.8rem;padding:.15rem .4rem;border-radius:.4rem}
+    .tag.inherited{background:#eef;color:#334155}
+    .tag.custom{background:#fff7ed;color:#a16207}
+    .tag.multi{background:#f3e8ff;color:#6d28d9}
+
+    /* Cost Center Picker */
+    .cc-picker{position:relative;min-width:280px}
+    .cc-input{width:100%;border:1px solid var(--border);border-radius:.6rem;padding:.5rem .6rem}
+    .cc-dropdown{position:absolute;inset-inline:0;top:calc(100% + .25rem);border:1px solid var(--border);border-radius:.6rem;background:var(--bg);box-shadow:0 10px 30px rgba(0,0,0,.08);max-height:280px;overflow:auto}
+    .cc-option{display:flex;align-items:center;gap:.6rem;padding:.45rem .6rem;cursor:pointer}
+    .cc-option[aria-selected="true"], .cc-option:hover{background:rgba(24,119,242,.08)}
+    .cc-code{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;color:var(--muted)}
+    .cc-footer{position:sticky;bottom:0;background:var(--row);border-top:1px solid var(--border);padding:.4rem .6rem}
+
+    /* Modal */
+    .modal[hidden]{display:none}
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:100}
+    .modal__panel{width:min(900px,96vw);background:var(--bg);border-radius:1rem;border:1px solid var(--border);overflow:hidden}
+    .modal-header,.modal-footer{padding:1rem;border-bottom:1px solid var(--border)}
+    .modal-footer{border-top:1px solid var(--border);border-bottom:none;display:flex;gap:.5rem;justify-content:flex-start;flex-wrap:wrap}
+    .modal-body{padding:1rem}
+
+    .alloc-table{width:100%;border-collapse:separate;border-spacing:0}
+    .alloc-table th,.alloc-table td{padding:.5rem;border-bottom:1px solid var(--border)}
+    .alloc-summary{display:flex;gap:1rem;margin-top:.75rem}
+    .hint{font-size:.85rem;color:var(--muted)}
+    .error{color:var(--danger);font-size:.85rem}
+
+    /* Toolbar & Filters */
+    .toolbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+
+    /* Responsive */
+    @media (max-width: 760px){
+      .hide-sm{display:none}
+      .lines-cards{display:grid;grid-template-columns:1fr;gap:.6rem}
+      .lines-cards .card{padding:.6rem}
+    }
+
+    /* Print */
+    @media print{
+      header.site,.no-print{display:none !important}
+      body{background:#fff;color:#000}
+      .card{border:none}
+    }
+  </style>
+</head>
+<body>
+  <header class="site" role="banner">
+    <div class="site__bar container">
+      <div class="brand" aria-label="العلامة">
+        <div class="logo" aria-hidden="true"></div>
+        <h1>واجهات مراكز التكلفة</h1>
+      </div>
+      <div class="toolbar no-print" role="toolbar" aria-label="إجراءات عامة">
+        <button id="themeToggle" class="btn" aria-pressed="false" title="تبديل الوضع الداكن">🌙 الوضع الداكن</button>
+        <nav class="tabs" role="tablist" aria-label="الأقسام">
+          <button class="tab" role="tab" aria-selected="true" data-tab="manage">إدارة المراكز</button>
+          <button class="tab" role="tab" aria-selected="false" data-tab="invoice">الفاتورة/السند</button>
+          <button class="tab" role="tab" aria-selected="false" data-tab="reports">الفلاتر والتقارير</button>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" id="app" role="main">
+
+    <!-- ================= A) شاشة إدارة مراكز التكلفة ================= -->
+    <section id="panel-manage" role="tabpanel" aria-labelledby="tab-manage">
+      <div class="card">
+        <div class="card__head">
+          <div class="row" style="align-items:center">
+            <input id="ccSearch" class="input" placeholder="ابحث بالاسم أو الكود" aria-label="بحث مراكز التكلفة" />
+            <select id="ccFilterState" class="select" aria-label="فلترة الحالة">
+              <option value="all">الكل</option>
+              <option value="active">نشطة</option>
+              <option value="inactive">مخفية</option>
+            </select>
+            <select id="ccFilterCat" class="select" aria-label="فلترة الفئة">
+              <option value="all">كل الفئات</option>
+              <option>إداري</option>
+              <option>تشغيلي</option>
+              <option>مبيعات</option>
+            </select>
+            <label class="toggle"><input type="checkbox" id="toggleShowInactive"> إظهار المراكز غير النشطة</label>
+          </div>
+          <div class="toolbar">
+            <button class="btn primary" id="btnAddCC">إضافة</button>
+            <button class="btn" id="btnEditCC">تعديل</button>
+            <button class="btn" id="btnToggleActive">إخفاء/إظهار</button>
+            <button class="btn" id="btnEnableDisable">تفعيل/تعطيل</button>
+            <button class="btn" id="btnImport">استيراد CSV</button>
+            <button class="btn" id="btnExport">تصدير CSV</button>
+          </div>
+        </div>
+        <div class="card__body">
+          <div class="scroll-x" aria-live="polite">
+            <table class="table" id="ccTable">
+              <thead>
+                <tr>
+                  <th class="hide-sm">#</th>
+                  <th>الاسم</th>
+                  <th>الكود</th>
+                  <th>الحالة</th>
+                  <th class="hide-sm">الفئة</th>
+                  <th class="hide-sm">الوصف</th>
+                  <th class="hide-sm">تاريخ الإنشاء</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="row" style="justify-content:space-between;align-items:center;margin-top:.75rem">
+            <div class="hint">ترقيم صفحات (يحاكي Virtual Scrolling)</div>
+            <div class="row">
+              <button class="btn" id="prevPage">السابق</button>
+              <span id="pageInfo" class="hint"></span>
+              <button class="btn" id="nextPage">التالي</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= D) واجهة الفاتورة/السند ================= -->
+    <section id="panel-invoice" hidden role="tabpanel" aria-labelledby="tab-invoice">
+      <div class="card">
+        <div class="card__head">
+          <div class="row" style="align-items:end">
+            <div class="cc-picker" style="min-width:340px">
+              <label for="cc-head" class="hint">مركز التكلفة (الرأس)</label>
+              <input id="cc-head" class="cc-input" type="text" placeholder="ابحث بالاسم أو الكود" aria-autocomplete="list" aria-expanded="false" aria-controls="cc-head-list" />
+              <div id="cc-head-list" class="cc-dropdown" role="listbox" hidden></div>
+            </div>
+            <button id="btnApplyHeadToLines" class="btn primary">توزيع على كل البنود</button>
+            <button id="btnHeadAllocation" class="btn">تحرير توزيع (الرأس)</button>
+          </div>
+        </div>
+        <div class="card__body">
+          <div class="scroll-x">
+            <table class="table lines" id="linesTable" aria-describedby="linesSummary">
+              <thead>
+                <tr>
+                  <th>الصنف</th>
+                  <th>الكمية</th>
+                  <th>السعر</th>
+                  <th>الإجمالي</th>
+                  <th>مركز التكلفة</th>
+                  <th>توزيع</th>
+                  <th>الحالة</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div id="linesSummary" class="row" style="margin-top:1rem;align-items:center;justify-content:space-between">
+            <div class="hint">تلميح: البنود بعلامة <span class="tag inherited">موروث</span> ترث مركز التكلفة من الرأس. عند أول تعديل تُصبح <span class="tag custom">مخصص</span>. أما البنود ذات التوزيع المتعدد فتظهر <span class="tag multi">متعدد</span>.</div>
+            <div id="docAllocationBar" class="hint">توزيع المستند الإجمالي: —</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= E) الفلاتر والتقارير ================= -->
+    <section id="panel-reports" hidden role="tabpanel" aria-labelledby="tab-reports">
+      <div class="card">
+        <div class="card__head">
+          <div class="row" style="align-items:center">
+            <div class="cc-picker">
+              <label for="report-cc" class="hint">فلترة حسب مركز تكلفة (متعدد)</label>
+              <input id="report-cc" class="cc-input" placeholder="اختر مراكز التكلفة" aria-autocomplete="list" aria-expanded="false" aria-controls="report-cc-list" />
+              <div id="report-cc-list" class="cc-dropdown" role="listbox" hidden></div>
+            </div>
+            <select id="report-state" class="select">
+              <option value="active">نشطة</option>
+              <option value="inactive">مخفية</option>
+              <option value="all">الكل</option>
+            </select>
+            <input id="report-date-from" class="input" type="date" />
+            <input id="report-date-to" class="input" type="date" />
+            <button class="btn primary" id="btnRunReport">تطبيق الفلاتر</button>
+            <button class="btn" id="btnExportPDF">تصدير PDF</button>
+            <button class="btn" id="btnExportExcel">تصدير Excel</button>
+          </div>
+        </div>
+        <div class="card__body">
+          <div class="scroll-x">
+            <table class="table" id="reportTable">
+              <thead>
+                <tr>
+                  <th>رقم المستند</th>
+                  <th>التاريخ</th>
+                  <th>مركز التكلفة (الرأس)</th>
+                  <th>مركز التكلفة (على البند)</th>
+                  <th>إجمالي التوزيع</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= C) محرّر التوزيع (Modal) ================= -->
+  <div id="allocation-modal" class="modal" role="dialog" aria-modal="true" hidden>
+    <div class="modal__panel" role="document">
+      <div class="modal-header">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h3 id="allocTitle">توزيع مراكز التكلفة</h3>
+          <button class="btn ghost" id="allocClose" aria-label="إغلاق">✖</button>
+        </div>
+        <div class="hint">قاعدة: إمّا تعبئة النِسَب (%) وسيُحسب القيم تلقائيًا من إجمالي البند، أو تعبئة القيم ويُحسب %.</div>
+      </div>
+      <div class="modal-body">
+        <table class="alloc-table" aria-live="polite">
+          <thead>
+            <tr><th>مركز التكلفة</th><th style="width:120px">%</th><th style="width:160px">القيمة</th><th style="width:80px"></th></tr>
+          </thead>
+          <tbody id="alloc-rows"></tbody>
+        </table>
+        <div class="alloc-summary">
+          <span>مجموع النسب: <b id="sum-percent">0%</b></span>
+          <span>مجموع القيم: <b id="sum-value">0.00</b></span>
+          <span id="allocError" class="error" aria-live="assertive"></span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="alloc-add-row" class="btn">إضافة صف</button>
+        <button id="alloc-save-preset" class="btn">حفظ كقالب</button>
+        <button id="alloc-apply-preset" class="btn">تطبيق قالب</button>
+        <button id="alloc-save" class="btn primary">حفظ</button>
+      </div>
+    </div>
+  </div>
+
+  <template id="alloc-row-tpl">
+    <tr>
+      <td>
+        <div class="cc-picker">
+          <input class="cc-input alloc-cc" placeholder="اختر مركز التكلفة" aria-autocomplete="list" />
+          <div class="cc-dropdown" role="listbox" hidden></div>
+        </div>
+      </td>
+      <td><input class="input percent-input" type="number" min="0" max="100" step="0.01" inputmode="decimal"></td>
+      <td><input class="input value-input" type="number" min="0" step="0.01" inputmode="decimal"></td>
+      <td><button class="btn danger row-remove">حذف</button></td>
+    </tr>
+  </template>
+
+  <script>
+    // ===============================
+    // Mock Data / API-like helpers
+    // ===============================
+    const MockDB = (() => {
+      // توليد مراكز تكلفة وهمية
+      const centers = Array.from({length: 800}, (_,i)=>{
+        const id = i+1;
+        const active = Math.random() > 0.2; // 80% نشطة
+        const cats = ["إداري","تشغيلي","مبيعات"];
+        return {
+          id: `CC-${String(id).padStart(4,'0')}`,
+          name: id % 7 === 0 ? `مركز ${id} (مخفي)` : `مركز ${id}`,
+          code: `C${id.toString(36).toUpperCase()}`,
+          active,
+          category: cats[id % cats.length],
+          description: `وصف مختصر للمركز ${id}`,
+          created_at: new Date(Date.now()-id*86400000).toISOString().slice(0,10),
+        }
+      });
+
+      const presets = [
+        { preset_id: "ELEC-PLANT", name: "كهرباء المصنع 20/40/40", rules:[
+          {cc_id:"CC-0001", percent:20},
+          {cc_id:"CC-0002", percent:40},
+          {cc_id:"CC-0003", percent:40},
+        ]},
+      ];
+
+      function searchCostCenters({query="", include_inactive=false, page=1, page_size=20, stateFilter='all', cat='all'}){
+        const q = query.trim().toLowerCase();
+        let list = centers.filter(cc => (include_inactive || cc.active));
+        if(stateFilter==='active') list = centers.filter(cc=>cc.active);
+        if(stateFilter==='inactive') list = centers.filter(cc=>!cc.active);
+        if(cat!=='all') list = list.filter(cc=>cc.category===cat);
+        if(q){
+          list = list.filter(cc => cc.name.toLowerCase().includes(q) || cc.code.toLowerCase().includes(q) || cc.id.toLowerCase().includes(q));
+        }
+        const total = list.length;
+        const start = (page-1)*page_size;
+        const rows = list.slice(start,start+page_size);
+        return Promise.resolve({rows,total,page,page_size});
+      }
+
+      function getPresets(){ return Promise.resolve(presets); }
+      function savePreset(p){
+        const idx = presets.findIndex(x=>x.preset_id===p.preset_id);
+        if(idx>-1) presets[idx]=p; else presets.push(p);
+        return Promise.resolve(p);
+      }
+
+      return { searchCostCenters, getPresets, savePreset };
+    })();
+
+    // Utilities
+    const fmt = {
+      money:x=> Number(x||0).toFixed(2),
+      percent:x=> `${Number(x||0).toFixed(2)}%`,
+    }
+    const debounce=(fn,ms=250)=>{let t;return (...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}}
+
+    // Global State
+    const state = {
+      theme: localStorage.getItem('theme')||'light',
+      cc:{
+        page:1, page_size:20, total:0, query:"", include_inactive:false, stateFilter:'all', cat:'all'
+      },
+      headCC:null, // {id, name, ...}
+      headAllocation:[], // [{cc_id, percent, value}]
+      lines:[
+        { line_id:1, item:"منتج A", qty:2, price:150, amount:300.00, inherited:true, cost_center:null, allocation:[] },
+        { line_id:2, item:"منتج B", qty:1, price:250, amount:250.00, inherited:true, cost_center:null, allocation:[] },
+        { line_id:3, item:"خدمة C", qty:3, price:120, amount:360.00, inherited:true, cost_center:null, allocation:[ {cc_id:"CC-0001", percent:30, value:108}, {cc_id:"CC-0002", percent:70, value:252} ] },
+      ],
+      allocContext:{ scope:'line', id:null, total:0, rows:[] }, // scope: 'line' | 'head'
+      reportRows:[],
+    }
+
+    // ================= Tabs & Theme =================
+    const tabBtns = document.querySelectorAll('.tab');
+    const panels = {
+      manage: document.getElementById('panel-manage'),
+      invoice: document.getElementById('panel-invoice'),
+      reports: document.getElementById('panel-reports'),
+    };
+    tabBtns.forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        tabBtns.forEach(b=>b.setAttribute('aria-selected','false'));
+        btn.setAttribute('aria-selected','true');
+        const key = btn.dataset.tab;
+        Object.entries(panels).forEach(([k,el])=> el.hidden = k!==key );
+      })
+    })
+
+    const themeRoot = document.documentElement;
+    const themeBtn = document.getElementById('themeToggle');
+    function applyTheme(){
+      themeRoot.setAttribute('data-theme', state.theme==='dark'?'dark':'light');
+      themeBtn.setAttribute('aria-pressed', state.theme==='dark');
+      themeBtn.textContent = state.theme==='dark'? '☀️ الوضع الفاتح' : '🌙 الوضع الداكن';
+    }
+    themeBtn.addEventListener('click',()=>{
+      state.theme = state.theme==='dark' ? 'light' : 'dark';
+      localStorage.setItem('theme', state.theme);
+      applyTheme();
+    })
+    applyTheme();
+
+    // ================= Manage: List & Pagination =================
+    const ccTBody = document.querySelector('#ccTable tbody');
+    const pageInfo = document.getElementById('pageInfo');
+    const prevPage = document.getElementById('prevPage');
+    const nextPage = document.getElementById('nextPage');
+    const ccSearch = document.getElementById('ccSearch');
+    const ccFilterState = document.getElementById('ccFilterState');
+    const ccFilterCat = document.getElementById('ccFilterCat');
+    const toggleShowInactive = document.getElementById('toggleShowInactive');
+
+    function renderCCRows(rows){
+      ccTBody.innerHTML = rows.map((cc,i)=>{
+        const badge = cc.active ? '<span class="cc-badge active">نشط</span>' : '<span class="cc-badge inactive">مخفي</span>';
+        return `<tr data-id="${cc.id}">
+          <td class="hide-sm">${state.cc.page_size*(state.cc.page-1)+i+1}</td>
+          <td>${cc.name}</td>
+          <td><span class="cc-code">${cc.id}</span><br><small>${cc.code}</small></td>
+          <td>${badge}</td>
+          <td class="hide-sm">${cc.category}</td>
+          <td class="hide-sm">${cc.description}</td>
+          <td class="hide-sm">${cc.created_at}</td>
+        </tr>`
+      }).join('');
+    }
+
+    async function loadCC(){
+      const {page,page_size,query,include_inactive,stateFilter,cat} = state.cc;
+      const res = await MockDB.searchCostCenters({query, include_inactive, page, page_size, stateFilter, cat});
+      state.cc.total = res.total;
+      renderCCRows(res.rows);
+      const pages = Math.max(1, Math.ceil(res.total/page_size));
+      pageInfo.textContent = `صفحة ${res.page} من ${pages} — إجمالي ${res.total}`;
+      prevPage.disabled = state.cc.page<=1;
+      nextPage.disabled = state.cc.page>=pages;
+    }
+
+    prevPage.addEventListener('click',()=>{ state.cc.page=Math.max(1,state.cc.page-1); loadCC(); })
+    nextPage.addEventListener('click',()=>{ state.cc.page=state.cc.page+1; loadCC(); })
+    ccFilterState.addEventListener('change',()=>{ state.cc.stateFilter=ccFilterState.value; state.cc.page=1; loadCC(); })
+    ccFilterCat.addEventListener('change',()=>{ state.cc.cat=ccFilterCat.value; state.cc.page=1; loadCC(); })
+    toggleShowInactive.addEventListener('change',()=>{ state.cc.include_inactive=toggleShowInactive.checked; state.cc.page=1; loadCC(); })
+    ccSearch.addEventListener('input', debounce(()=>{ state.cc.query = ccSearch.value; state.cc.page=1; loadCC(); }))
+
+    loadCC();
+
+    // ================= CostCenterPicker (generic) =================
+    function attachPicker(input, {multi=false, includeInactiveToggle=true, onPick}={}){
+      const wrap = input.closest('.cc-picker');
+      const list = wrap.querySelector('.cc-dropdown');
+      input.setAttribute('role','combobox');
+      input.setAttribute('aria-expanded','false');
+      input.setAttribute('autocomplete','off');
+
+      let cursor = -1;
+      let cache = {rows:[], total:0, page:1};
+      let include_inactive=false;
+
+      async function query(q){
+        const res = await MockDB.searchCostCenters({query:q, include_inactive, page:1, page_size:20});
+        cache=res; render(res.rows);
+      }
+      const debouncedQuery = debounce(q=>query(q),250);
+
+      function render(rows){
+        list.innerHTML = rows.map((cc,idx)=>{
+          const badge = cc.active?'<span class="cc-badge active">نشط</span>':'<span class="cc-badge inactive">مخفي</span>';
+          return `<div class="cc-option" role="option" aria-selected="${idx===cursor}" data-id="${cc.id}" data-name="${cc.name}">
+            <span class="cc-code">${cc.id}</span>
+            <span class="cc-name">${cc.name}</span>
+            ${badge}
+          </div>`
+        }).join('') + (includeInactiveToggle?`
+          <div class="cc-footer">
+            <label><input type="checkbox" class="cc-show-inactive"> إظهار غير النشطة مؤقتًا</label>
+          </div>`:'');
+        list.hidden=false; input.setAttribute('aria-expanded','true');
+      }
+
+      function close(){ list.hidden=true; input.setAttribute('aria-expanded','false'); cursor=-1; }
+
+      input.addEventListener('input', e=>{ debouncedQuery(input.value) })
+      input.addEventListener('focus', ()=>{ debouncedQuery(input.value) })
+      input.addEventListener('keydown', e=>{
+        const items = Array.from(list.querySelectorAll('.cc-option'));
+        if(e.key==='ArrowDown'){ e.preventDefault(); cursor=Math.min(items.length-1, cursor+1); items.forEach((el,i)=>el.setAttribute('aria-selected', i===cursor)); items[cursor]?.scrollIntoView({block:'nearest'}) }
+        else if(e.key==='ArrowUp'){ e.preventDefault(); cursor=Math.max(0, cursor-1); items.forEach((el,i)=>el.setAttribute('aria-selected', i===cursor)); items[cursor]?.scrollIntoView({block:'nearest'}) }
+        else if(e.key==='Enter'){ if(cursor>-1){ e.preventDefault(); items[cursor].click(); } }
+        else if(e.key==='Escape'){ close(); }
+      })
+      list.addEventListener('click', e=>{
+        const opt = e.target.closest('.cc-option');
+        if(opt){ const id=opt.dataset.id, name=opt.dataset.name; input.value = `${id} — ${name}`; close(); onPick && onPick({id, name}); return; }
+        const chk = e.target.closest('.cc-show-inactive');
+        if(chk){ include_inactive = chk.checked; query(input.value); }
+      })
+      document.addEventListener('click', e=>{ if(!wrap.contains(e.target)) close(); })
+
+      return {close};
+    }
+
+    // Picker: Head
+    const headPicker = attachPicker(document.getElementById('cc-head'), {
+      onPick: (cc)=>{ state.headCC = cc; }
+    });
+
+    // ================= Invoice Lines =================
+    const linesBody = document.querySelector('#linesTable tbody');
+    const docAllocationBar = document.getElementById('docAllocationBar');
+    function lineTotal(l){ return Number(l.qty)*Number(l.price); }
+    function computeDocAllocation(){
+      // تجميع توزيعات المستند من كل البنود
+      const map = new Map();
+      for(const l of state.lines){
+        if(l.allocation?.length){
+          for(const a of l.allocation){ map.set(a.cc_id, (map.get(a.cc_id)||0) + Number(a.value||0)); }
+        } else if(l.cost_center){
+          // إذا كان مركز مفرد نضيف كامل قيمة البند
+          map.set(l.cost_center.id, (map.get(l.cost_center.id)||0) + lineTotal(l));
+        } else if(state.headCC && l.inherited){
+          map.set(state.headCC.id, (map.get(state.headCC.id)||0) + lineTotal(l));
+        }
+      }
+      const parts=[...map.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6).map(([id,val])=>`${id}: ${fmt.money(val)}`);
+      docAllocationBar.textContent = parts.length? `توزيع المستند الإجمالي: ${parts.join(' | ')}` : 'توزيع المستند الإجمالي: —';
+    }
+
+    function renderLines(){
+      linesBody.innerHTML = state.lines.map(l=>{
+        const status = l.allocation?.length ? '<span class="tag multi">متعدد</span>' : (l.inherited ? '<span class="tag inherited">موروث</span>' : '<span class="tag custom">مخصص</span>');
+        const ccLabel = l.cost_center? `${l.cost_center.id} — ${l.cost_center.name}` : (l.inherited && state.headCC? `${state.headCC.id} — ${state.headCC.name}`: '—');
+        return `<tr data-line-id="${l.line_id}">
+          <td>${l.item}</td>
+          <td>${l.qty}</td>
+          <td>${fmt.money(l.price)}</td>
+          <td>${fmt.money(lineTotal(l))}</td>
+          <td>
+            <div class="cc-picker">
+              <input class="cc-input line-cc" placeholder="اختر" value="${ccLabel}" />
+              <div class="cc-dropdown" role="listbox" hidden></div>
+            </div>
+          </td>
+          <td><button class="btn alloc-open">تحرير</button></td>
+          <td>${status}</td>
+        </tr>`
+      }).join('');
+
+      // Attach pickers for each line
+      linesBody.querySelectorAll('tr').forEach(tr=>{
+        const id = Number(tr.dataset.lineId);
+        const input = tr.querySelector('.line-cc');
+        attachPicker(input, { onPick:(cc)=>{
+          const line = state.lines.find(x=>x.line_id===id);
+          line.cost_center = cc; line.inherited=false; line.allocation=[]; // مركز مفرد يلغي التوزيع
+          renderLines(); computeDocAllocation();
+        }});
+      })
+
+      computeDocAllocation();
+    }
+    renderLines();
+
+    // Apply head CC to lines
+    document.getElementById('btnApplyHeadToLines').addEventListener('click',()=>{
+      if(!state.headCC){ alert('اختر مركز تكلفة في رأس المستند أولًا.'); return; }
+      state.lines.forEach(l=>{ if(l.inherited){ l.cost_center=null; l.allocation=[]; } });
+      renderLines();
+    })
+
+    // Head Allocation open
+    document.getElementById('btnHeadAllocation').addEventListener('click',()=>{
+      const total = state.lines.reduce((s,l)=> s + (l.inherited? lineTotal(l):0),0);
+      openAllocation({ scope:'head', id:'head', total, rows: JSON.parse(JSON.stringify(state.headAllocation||[])) });
+      document.getElementById('allocTitle').textContent = 'توزيع مراكز التكلفة (الرأس)';
+    })
+
+    // Line allocation open
+    linesBody.addEventListener('click', e=>{
+      const btn = e.target.closest('.alloc-open');
+      if(!btn) return;
+      const tr = btn.closest('tr');
+      const id = Number(tr.dataset.lineId);
+      const line = state.lines.find(x=>x.line_id===id);
+      openAllocation({ scope:'line', id, total: lineTotal(line), rows: JSON.parse(JSON.stringify(line.allocation||[])) });
+      document.getElementById('allocTitle').textContent = `توزيع مراكز التكلفة للبند #${id}`;
+    })
+
+    // ================= Allocation Modal =================
+    const modal = document.getElementById('allocation-modal');
+    const allocRows = document.getElementById('alloc-rows');
+    const rowTpl = document.getElementById('alloc-row-tpl');
+    const sumPercentEl = document.getElementById('sum-percent');
+    const sumValueEl = document.getElementById('sum-value');
+    const allocErrorEl = document.getElementById('allocError');
+
+    function openAllocation({scope,id,total,rows}){
+      state.allocContext = {scope,id,total,rows};
+      allocRows.innerHTML = '';
+      if(!rows.length){ rows=[{cc_id:null, percent:null, value:null}] }
+      for(const r of rows){ addAllocRow(r) }
+      recalcAlloc();
+      modal.hidden=false;
+    }
+    function closeAllocation(){ modal.hidden=true; }
+
+    document.getElementById('allocClose').addEventListener('click', closeAllocation)
+    modal.addEventListener('click', e=>{ if(e.target===modal) closeAllocation(); })
+
+    function addAllocRow(r={}){
+      const tr = rowTpl.content.firstElementChild.cloneNode(true);
+      const ccInput = tr.querySelector('.alloc-cc');
+      const pct = tr.querySelector('.percent-input');
+      const val = tr.querySelector('.value-input');
+      if(r.cc_id){ ccInput.value = r.cc_id; }
+      if(r.percent!=null) pct.value = r.percent;
+      if(r.value!=null) val.value = r.value;
+
+      attachPicker(ccInput, { onPick:(cc)=>{ ccInput.value = cc.id; recalcAlloc(); } });
+
+      pct.addEventListener('input', debounce(()=>{ if(pct.value){ val.value = (Number(pct.value)/100)*state.allocContext.total; } recalcAlloc(); }, 200))
+      val.addEventListener('input', debounce(()=>{ if(val.value){ pct.value = (Number(val.value)/state.allocContext.total)*100; } recalcAlloc(); }, 200))
+
+      tr.querySelector('.row-remove').addEventListener('click', ()=>{ tr.remove(); recalcAlloc(); })
+      allocRows.appendChild(tr);
+    }
+
+    document.getElementById('alloc-add-row').addEventListener('click', ()=> addAllocRow({}))
+
+    function recalcAlloc(){
+      let p=0,v=0; let ok=true; let negative=false; const rows=[];
+      allocRows.querySelectorAll('tr').forEach(tr=>{
+        const cc = tr.querySelector('.alloc-cc').value.trim();
+        const pct = Number(tr.querySelector('.percent-input').value||0);
+        const val = Number(tr.querySelector('.value-input').value||0);
+        if(pct<0 || val<0) negative=true;
+        p += pct; v += val;
+        if(cc){ rows.push({cc_id:cc, percent: pct||null, value: val||null}); }
+      })
+      sumPercentEl.textContent = fmt.percent(p);
+      sumValueEl.textContent = fmt.money(v);
+      const total = state.allocContext.total || 0;
+      const percentOK = Math.abs(p-100) <= 0.01;
+      const valueOK = Math.abs(v-total) <= 0.01;
+      ok = (percentOK || valueOK) && !negative;
+      allocErrorEl.textContent = negative ? 'لا يُسمح بقيم سالبة.' : (!percentOK && !valueOK ? `المجموع غير صحيح: يجب أن يساوي مجموع النسب 100% أو مجموع القيم ${fmt.money(total)}.` : '');
+      state.allocContext.rows = rows; state.allocContext.valid = ok;
+      document.getElementById('alloc-save').disabled = !ok;
+    }
+
+    // Presets
+    document.getElementById('alloc-save-preset').addEventListener('click', async()=>{
+      const name = prompt('اسم القالب:'); if(!name) return;
+      const preset = { preset_id: name.toUpperCase().replace(/\s+/g,'-'), name, rules: state.allocContext.rows.map(r=>({cc_id:r.cc_id, percent:r.percent??null}))};
+      await MockDB.savePreset(preset);
+      alert('تم حفظ القالب');
+    })
+
+    document.getElementById('alloc-apply-preset').addEventListener('click', async()=>{
+      const list = await MockDB.getPresets();
+      const name = prompt('أدخل معرف القالب:\n' + list.map(p=>`${p.preset_id}: ${p.name}`).join('\n'));
+      const p = list.find(x=>x.preset_id===name);
+      if(!p) return alert('لم يتم العثور على القالب');
+      allocRows.innerHTML='';
+      for(const r of p.rules){ addAllocRow({cc_id:r.cc_id, percent:r.percent||null, value:null}) }
+      recalcAlloc();
+    })
+
+    // Save allocation
+    document.getElementById('alloc-save').addEventListener('click', ()=>{
+      if(!state.allocContext.valid) return;
+      const rows = state.allocContext.rows;
+      if(state.allocContext.scope==='line'){
+        const line = state.lines.find(x=>x.line_id===state.allocContext.id);
+        // حساب القيم من النسب إن لزم
+        const total = lineTotal(line);
+        const normalized = rows.map(r=>{
+          const hasPct = r.percent!=null && !isNaN(r.percent);
+          const hasVal = r.value!=null && !isNaN(r.value);
+          return {
+            cc_id:r.cc_id,
+            percent: hasPct? Number(r.percent): (hasVal? (Number(r.value)/total)*100 : null),
+            value: hasVal? Number(r.value): (hasPct? (Number(r.percent)/100)*total : null)
+          }
+        })
+        line.allocation = normalized; line.cost_center=null; line.inherited=false;
+      } else {
+        // head allocation -> ينطبق فقط على البنود الموروثة
+        const total = state.lines.reduce((s,l)=> s + (l.inherited? lineTotal(l):0),0);
+        const normalized = rows.map(r=>{
+          const hasPct = r.percent!=null && !isNaN(r.percent);
+          const hasVal = r.value!=null && !isNaN(r.value);
+          return {
+            cc_id:r.cc_id,
+            percent: hasPct? Number(r.percent): (hasVal? (Number(r.value)/total)*100 : null),
+            value: hasVal? Number(r.value): (hasPct? (Number(r.percent)/100)*total : null)
+          }
+        })
+        state.headAllocation = normalized;
+        // طبّق على البنود الموروثة
+        state.lines.forEach(l=>{ if(l.inherited){ l.allocation = normalized.map(a=>({cc_id:a.cc_id, percent:a.percent, value:(a.percent/100)*lineTotal(l)})); l.cost_center=null; } })
+      }
+      renderLines(); computeDocAllocation(); closeAllocation();
+    })
+
+    // ================= Reports (mock) =================
+    document.getElementById('btnRunReport').addEventListener('click', ()=>{
+      // إنشاء نتائج وهمية تحترم الأعمدة
+      const tbody = document.querySelector('#reportTable tbody');
+      const rows = state.lines.map((l,i)=>{
+        const head = state.headCC? state.headCC.id : '—';
+        const lineCC = l.allocation?.length? l.allocation.map(a=>a.cc_id).join('+') : (l.cost_center? l.cost_center.id : (l.inherited && state.headCC? state.headCC.id : '—'));
+        const totalAlloc = l.allocation?.reduce((s,a)=>s+Number(a.value||0),0) || (l.cost_center? lineTotal(l): (l.inherited && state.headCC? lineTotal(l) : 0));
+        return `<tr>
+          <td>${1000+i}</td>
+          <td>${new Date().toISOString().slice(0,10)}</td>
+          <td>${head}</td>
+          <td>${lineCC}</td>
+          <td>${fmt.money(totalAlloc)}</td>
+        </tr>`
+      }).join('');
+      tbody.innerHTML = rows;
+    })
+
+    // Exports (stubs)
+    function download(filename, text){
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], {type:'text/plain'}));
+      a.download = filename; a.click(); URL.revokeObjectURL(a.href);
+    }
+    document.getElementById('btnExport').addEventListener('click', async()=>{
+      const {rows} = await MockDB.searchCostCenters({query:state.cc.query, include_inactive:state.cc.include_inactive, page:1, page_size:state.cc.total||10000});
+      const csv = ['الاسم,kod,الحالة,الفئة,الوصف,تاريخ الإنشاء']
+        .concat(rows.map(r=>[r.name,r.id,(r.active?'نشط':'مخفي'),r.category,r.description,r.created_at].join(',')))
+        .join('\n');
+      download('cost_centers.csv', csv);
+    })
+    document.getElementById('btnExportPDF').addEventListener('click', ()=>{ window.print(); })
+    document.getElementById('btnExportExcel').addEventListener('click', ()=>{
+      const tbody = document.querySelector('#reportTable tbody');
+      const rows = [...tbody.querySelectorAll('tr')].map(tr=>[...tr.children].map(td=>td.textContent.trim()).join(',')).join('\n');
+      download('report.csv', 'رقم المستند,التاريخ,مركز الرأس,مركز البند,إجمالي التوزيع\n'+rows);
+    })
+
+  </script>
+</body>
+</html>
